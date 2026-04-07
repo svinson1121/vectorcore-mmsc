@@ -1,0 +1,71 @@
+database:
+  driver: sqlite   # sqlite or postgres
+  dsn: "./vectorcore-mmsc.db"
+  max_open_conns: 10
+  max_idle_conns: 5
+  runtime_reload_interval: 5s
+  #driver: postgres
+  #dsn: "postgres://mmsc:mmsc@localhost/mmsc"
+
+
+mm1:
+  listen: ":8002"
+  retrieve_base_url: "http://localhost:8002/mms/retrieve"
+  max_body_size_bytes: 10485760
+
+mm3:
+  inbound_listen: ":2026"
+  max_message_size_bytes: 10485760
+
+mm4:
+  inbound_listen: ":2025"
+  hostname: "mmsc.localdomain"
+  max_message_size_bytes: 10485760
+
+mm7:
+  listen: ":8007"
+  path: "/mm7"
+  eaif_path: "/eaif"
+  version: "5.3.0"
+  eaif_version: "3.0"
+  namespace: "http://www.3gpp.org/ftp/Specs/archive/23_series/23.140/schema/REL-5-MM7-1-0"
+
+api:
+  listen: ":8080"
+
+store:
+  backend: filesystem
+  filesystem:
+    root: "./data/store"
+  s3:
+    endpoint: ""
+    bucket: ""
+    access_key: ""
+    secret_key: ""
+    region: ""
+  tiered:
+    offload_after: 1h
+    local_cache: true
+
+adapt:
+  enabled: false
+  libvips_path: "/usr/bin/vips"
+  ffmpeg_path: "/usr/bin/ffmpeg"
+
+limits:
+  max_message_size_bytes: 5242880  # 5 MB
+  default_message_expiry: 168h     # 7 days applied when MM1 message carries no expiry
+  max_message_retention: 720h      # 30 days hard ceiling regardless of expiry
+
+billing:
+  enabled: false
+  export_dir: "./data/billing"
+  interval: 1h
+  tenant: "cgrates.org"
+  req_type: "*postpaid"
+  node_id: ""  # defaults to mm4.hostname if empty
+
+log:
+  level: info
+  format: json
+  file: "./log/mmsc.log"

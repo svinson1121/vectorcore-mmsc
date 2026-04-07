@@ -1,0 +1,21 @@
+From: +12025550100
+To: +12025550101
+MIME-Version: 1.0
+Content-Type: multipart/related; boundary=fixture-boundary
+X-Mms-3GPP-MMS-Version: 6.3.0
+X-Mms-Message-Type: MM4_forward.REQ
+X-Mms-Transaction-ID: txn-1
+X-Mms-Message-ID: mid-1
+X-Mms-Originator-System: system=mmsc.example.net;party=+12025550100
+X-Mms-Sender-Address: +12025550100/TYPE=PLMN
+X-Mms-To: +12025550101/TYPE=PLMN
+Subject: hello
+X-Mms-Delivery-Report: Yes
+
+--fixture-boundary
+Content-Type: text/plain
+Content-ID: <text1>
+Content-Location: text1.txt
+
+hello
+--fixture-boundary--

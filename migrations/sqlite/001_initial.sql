@@ -1,0 +1,40 @@
+create table if not exists messages (
+    id text primary key,
+    transaction_id text not null,
+    status integer not null default 0,
+    direction integer not null,
+    origin_if integer not null,
+    from_addr text not null,
+    to_addrs text not null,
+    cc_addrs text,
+    bcc_addrs text,
+    subject text,
+    content_type text,
+    message_class integer default 0,
+    priority integer default 1,
+    mms_version text default '1.3',
+    delivery_report integer default 0,
+    read_report integer default 0,
+    expiry text,
+    delivery_time text,
+    message_size integer default 0,
+    content_path text,
+    store_id text,
+    origin_host text,
+    vasp_id text,
+    received_at text default current_timestamp,
+    updated_at text default current_timestamp
+);
+
+create table if not exists delivery_records (
+    id integer primary key autoincrement,
+    message_id text not null references messages(id),
+    recipient text not null,
+    status integer not null default 0,
+    attempts integer default 0,
+    last_attempt text,
+    delivered_at text,
+    error_text text,
+    created_at text default current_timestamp,
+    updated_at text default current_timestamp
+);

@@ -1,0 +1,32 @@
+--soap-boundary
+Content-Type: text/xml; charset=utf-8
+
+<?xml version="1.0"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mm7="http://www.3gpp.org/ftp/Specs/archive/23_series/23.140/schema/REL-5-MM7-1-0">
+  <soapenv:Header>
+    <mm7:TransactionID soapenv:mustUnderstand="1">txn-fixture</mm7:TransactionID>
+  </soapenv:Header>
+  <soapenv:Body>
+    <mm7:SubmitReq>
+      <MM7Version>5.3.0</MM7Version>
+      <SenderIdentification>
+        <VASPID>vasp-001</VASPID>
+        <VASID>service-001</VASID>
+        <SenderAddress>
+          <ShortCode>12345</ShortCode>
+        </SenderAddress>
+      </SenderIdentification>
+      <Recipients>
+        <To><Number>+12025550101</Number></To>
+      </Recipients>
+      <Subject>Hello</Subject>
+      <Content href="cid:message-content"></Content>
+    </mm7:SubmitReq>
+  </soapenv:Body>
+</soapenv:Envelope>
+--soap-boundary
+Content-Type: text/plain
+Content-ID: <message-content>
+
+hello from fixture
+--soap-boundary--

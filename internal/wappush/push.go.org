@@ -1,0 +1,44 @@
+package wappush
+
+import "fmt"
+
+const (
+	wspTransactionID    = 0x01
+	wspPushPDU          = 0x06
+	wspHeadersLen       = 0x03
+	wspHeaderMMSMime    = 0xBE
+	wspHeaderAppID      = 0xAF
+	wspHeaderAppIDMMSUA = 0x84
+)
+
+func WrapMMSPDU(mmsPDU []byte) []byte {
+	out := []byte{
+		wspTransactionID,
+		wspPushPDU,
+		wspHeadersLen,
+		wspHeaderMMSMime,
+		wspHeaderAppID,
+		wspHeaderAppIDMMSUA,
+	}
+	out = append(out, mmsPDU...)
+	return out
+}
+
+func UnwrapMMSPDU(push []byte) ([]byte, error) {
+	if len(push) < 6 {
+		return nil, fmt.Errorf("wappush: short push payload")
+	}
+	if push[1] != wspPushPDU {
+		return nil, fmt.Errorf("wappush: unexpected pdu type %x", push[1])
+	}
+	if push[2] != wspHeadersLen {
+		return nil, fmt.Errorf("wappush: unexpected header length %x", push[2])
+	}
+	if push[3] != wspHeaderMMSMime {
+		return nil, fmt.Errorf("wappush: unexpected content type %x", push[3])
+	}
+	if push[4] != wspHeaderAppID || push[5] != wspHeaderAppIDMMSUA {
+		return nil, fmt.Errorf("wappush: unexpected application id header %x %x", push[4], push[5])
+	}
+	return append([]byte(nil), push[6:]...), nil
+}

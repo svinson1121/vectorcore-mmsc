@@ -1,0 +1,13 @@
+From: mmsc.example.net
+To: +12025550100/TYPE=PLMN
+MIME-Version: 1.0
+Content-Type: text/plain
+X-Mms-3GPP-MMS-Version: 6.3.0
+X-Mms-Message-Type: MM4_read_reply_report.REQ
+X-Mms-Transaction-ID: txn-read
+X-Mms-Message-ID: mid-read
+X-Mms-Originator-System: system=mmsc.example.net;party=+12025550101
+X-Mms-Read-Status: Read
+X-Mms-Request-Status-Code: Ok
+
+OK

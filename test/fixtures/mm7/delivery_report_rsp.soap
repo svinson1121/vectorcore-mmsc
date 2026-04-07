@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mm7="http://www.3gpp.org/ftp/Specs/archive/23_series/23.140/schema/REL-5-MM7-1-0">
+  <soapenv:Header>
+    <mm7:TransactionID soapenv:mustUnderstand="1">txn-report</mm7:TransactionID>
+  </soapenv:Header>
+  <soapenv:Body>
+    <mm7:DeliveryReportRsp>
+      <MM7Version>5.3.0</MM7Version>
+      <Status>
+        <StatusCode>1000</StatusCode>
+        <StatusText>Success</StatusText>
+      </Status>
+      <MessageID>mid-report</MessageID>
+    </mm7:DeliveryReportRsp>
+  </soapenv:Body>
+</soapenv:Envelope>

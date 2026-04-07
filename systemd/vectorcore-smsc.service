@@ -1,0 +1,17 @@
+[Unit]
+Description=VectorCore MMSC
+After=network.target
+# After=postgresql.service
+# Wants=postgresql.service
+
+[Service]
+Type=simple
+ExecStart=/opt/vectorcore/bin/mmsc -c /opt/vectorcore/etc/mmsc.yaml
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vectorcore-mmsc
+
+[Install]
+WantedBy=multi-user.target
