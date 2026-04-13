@@ -46,10 +46,8 @@ Designed for lab deployments, test networks, and educational use. Supports all m
 
 ```bash
 # Build the binary
-go build -o bin/mmsc ./cmd/mmsc/
-
-# Build the Admin UI
-cd web && npm install && npm run build
+make clean
+make
 ```
 
 ### Configure
