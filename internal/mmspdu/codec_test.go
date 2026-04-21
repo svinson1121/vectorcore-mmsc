@@ -148,6 +148,24 @@ func TestDecodeLengthPrefixedAddressValue(t *testing.T) {
 	}
 }
 
+func TestDecodeNestedAddressPresentFromValue(t *testing.T) {
+	t.Parallel()
+
+	value := HeaderValue{
+		Field: FieldFrom,
+		Kind:  FieldKindAddress,
+		Raw:   []byte{0x18, 0x80, 0x16, 0xEA, '3', '3', '4', '2', '0', '1', '2', '8', '3', '4', '/', 'T', 'Y', 'P', 'E', '=', 'P', 'L', 'M', 'N', 0x00},
+	}
+
+	got, err := value.Text()
+	if err != nil {
+		t.Fatalf("decode nested address: %v", err)
+	}
+	if got != "3342012834/TYPE=PLMN" {
+		t.Fatalf("unexpected nested address: %q", got)
+	}
+}
+
 func TestHeaderEncodeDecodeRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -412,6 +430,36 @@ func TestDecodeMultipartAcceptsWSPStylePartHeaders(t *testing.T) {
 	}
 }
 
+func TestDecodeMultipartAcceptsCharsetTokenizedParam(t *testing.T) {
+	t.Parallel()
+
+	headers, err := hex.DecodeString("1d6170706c69636174696f6e2f736d696c0085736d696c2e786d6c0081eac0223c736d696c3e008e736d696c2e786d6c00")
+	if err != nil {
+		t.Fatalf("decode part headers: %v", err)
+	}
+
+	body := []byte{0x01, byte(len(headers)), 0x07}
+	body = append(body, headers...)
+	body = append(body, []byte("<smil/>")...)
+
+	decoded, err := DecodeMultipart(body)
+	if err != nil {
+		t.Fatalf("decode multipart: %v", err)
+	}
+	if len(decoded.Parts) != 1 {
+		t.Fatalf("unexpected part count: %d", len(decoded.Parts))
+	}
+	if decoded.Parts[0].ContentType != "application/smil" {
+		t.Fatalf("unexpected part content type: %q", decoded.Parts[0].ContentType)
+	}
+	if decoded.Parts[0].ContentTypeParams["charset"] != "utf-8" {
+		t.Fatalf("unexpected charset param: %#v", decoded.Parts[0].ContentTypeParams)
+	}
+	if decoded.Parts[0].ContentTypeParams["name"] != "smil.xml" {
+		t.Fatalf("unexpected part params: %#v", decoded.Parts[0].ContentTypeParams)
+	}
+}
+
 func TestSendReqWithPartsRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -596,6 +644,28 @@ func TestReferencePDUsDecodeEncode(t *testing.T) {
 				}
 				if pdu.Body == nil || len(pdu.Body.Parts) != 1 {
 					t.Fatalf("expected send req body, got %#v", pdu.Body)
+				}
+			},
+		},
+		{
+			name:        "m-send-req-sonim.bin",
+			messageType: MsgTypeSendReq,
+			check: func(t *testing.T, pdu *PDU) {
+				t.Helper()
+				if got, err := pdu.Headers[FieldFrom].Text(); err != nil || got != "3342012834/TYPE=PLMN" {
+					t.Fatalf("unexpected SONIM from address: %q err=%v", got, err)
+				}
+				if pdu.Body == nil || len(pdu.Body.Parts) != 2 {
+					t.Fatalf("expected SONIM send req body, got %#v", pdu.Body)
+				}
+				if pdu.Body.Parts[0].ContentType != "application/smil" {
+					t.Fatalf("unexpected SONIM first part type: %q", pdu.Body.Parts[0].ContentType)
+				}
+				if pdu.Body.Parts[0].ContentTypeParams["charset"] != "utf-8" {
+					t.Fatalf("unexpected SONIM charset param: %#v", pdu.Body.Parts[0].ContentTypeParams)
+				}
+				if pdu.Body.Parts[1].ContentType != "image/jpeg" {
+					t.Fatalf("unexpected SONIM second part type: %q", pdu.Body.Parts[1].ContentType)
 				}
 			},
 		},

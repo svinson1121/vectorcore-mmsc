@@ -1,15 +1,22 @@
 APP := mmsc
 BIN := bin/$(APP)
+VERSION ?= 0.3.2B
 CONFIG ?= config.yaml
 GOCACHE ?= /tmp/vectorcore-mmsc-gocache
 GOMODCACHE ?= /tmp/vectorcore-mmsc-gomodcache
 GO := env GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go
+NPM ?= npm
+WEB_DIR := web
+LDFLAGS := -X main.appVersion=$(VERSION)
 
-.PHONY: build test run fmt tidy clean
+.PHONY: build web-build test run fmt tidy clean
 
-build:
+build: web-build
 	@mkdir -p bin
-	$(GO) build -o $(BIN) ./cmd/mmsc
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/mmsc
+
+web-build:
+	$(NPM) --prefix $(WEB_DIR) run build
 
 test:
 	$(GO) test ./...

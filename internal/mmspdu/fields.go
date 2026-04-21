@@ -264,6 +264,13 @@ func decodeAddressString(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", errShortData
 	}
+	return decodeAddressValue(data)
+}
+
+func decodeAddressValue(data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", errShortData
+	}
 	if data[0] <= 30 {
 		if len(data) < int(data[0])+1 {
 			return "", errShortData
@@ -272,7 +279,10 @@ func decodeAddressString(data []byte) (string, error) {
 		if isInsertAddressToken(payload) {
 			return "", errInsertAddress
 		}
-		return decodeEncodedStringPayload(payload)
+		return decodeAddressValue(payload)
+	}
+	if data[0] == 0x80 {
+		return decodeAddressValue(data[1:])
 	}
 	return decodeEncodedStringPayload(data)
 }

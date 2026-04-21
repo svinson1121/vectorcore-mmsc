@@ -70,6 +70,12 @@ var wellKnownContentTypeParamTokens = map[string]byte{
 	"start":   0x8A,
 }
 
+var wellKnownCharsetsByToken = map[byte]string{
+	0x83: "us-ascii",
+	0x84: "iso-8859-1",
+	0xEA: "utf-8",
+}
+
 func NewContentTypeValue(mediaType string, params map[string]string) HeaderValue {
 	return HeaderValue{
 		Field: FieldContentType,
@@ -216,26 +222,21 @@ func decodeContentTypeValue(data []byte) (ContentTypeValue, error) {
 			}
 			paramName = strings.ToLower(paramName)
 		}
-		// Parameter value: may be a well-known token (bit 7 set, e.g. media
-		// type token for "type" param) or a null-terminated text string.
-		var paramValue string
+		// Parameter values are tokenized according to the parameter type. In
+		// particular, charset tokens are MIBenum values, not media-type tokens.
+		var valueRaw []byte
 		if reader.Remaining() > 0 && reader.data[reader.pos]&0x80 != 0 {
 			b, _ := reader.ReadByte()
-			if name, ok := wellKnownMediaTypesByToken[b]; ok {
-				paramValue = name
-			} else {
-				// Unknown token — skip and omit the parameter.
-				continue
-			}
+			valueRaw = []byte{b}
 		} else {
-			valueRaw, err := reader.ReadUntilNull()
+			valueRaw, err = reader.ReadUntilNull()
 			if err != nil {
 				return ContentTypeValue{}, err
 			}
-			paramValue, err = decodeTextString(valueRaw)
-			if err != nil {
-				return ContentTypeValue{}, err
-			}
+		}
+		paramValue, err := decodeContentTypeParamValue(paramName, valueRaw)
+		if err != nil {
+			return ContentTypeValue{}, err
 		}
 		params[paramName] = paramValue
 	}
@@ -267,6 +268,56 @@ func readPayloadMediaType(reader *byteReader) (string, error) {
 func skipTextValue(reader *byteReader) error {
 	_, err := reader.ReadUntilNull()
 	return err
+}
+
+func decodeContentTypeParamValue(paramName string, data []byte) (string, error) {
+	switch strings.ToLower(paramName) {
+	case "type":
+		return decodeTokenOrTextMediaType(data)
+	case "charset":
+		return decodeCharsetParamValue(data)
+	default:
+		return decodeTokenOrTextString(data)
+	}
+}
+
+func decodeTokenOrTextMediaType(data []byte) (string, error) {
+	if len(data) == 1 && data[0]&0x80 != 0 {
+		return decodeWellKnownMediaType(data[0])
+	}
+	return decodeTokenOrTextString(data)
+}
+
+func decodeCharsetParamValue(data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", errShortData
+	}
+	if len(data) == 1 && data[0]&0x80 != 0 {
+		if charset, ok := wellKnownCharsetsByToken[data[0]]; ok {
+			return charset, nil
+		}
+		return fmt.Sprintf("%d", data[0]&0x7f), nil
+	}
+	return decodeTokenOrTextString(data)
+}
+
+func decodeTokenOrTextString(data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", errShortData
+	}
+	if text, err := decodeQuotedString(data); err == nil {
+		return text, nil
+	}
+	if text, err := decodeTextString(data); err == nil {
+		return text, nil
+	}
+	if text, err := decodeEncodedStringPayload(data); err == nil {
+		return text, nil
+	}
+	if len(data) == 1 && data[0]&0x80 != 0 {
+		return "", fmt.Errorf("mmspdu: unsupported tokenized parameter value %x", data[0])
+	}
+	return "", errShortData
 }
 
 func decodeValueLength(data []byte) (length int, consumed int, err error) {

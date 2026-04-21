@@ -35,7 +35,7 @@ import (
 	"github.com/vectorcore/vectorcore-mmsc/migrations"
 )
 
-const appVersion = "0.1.0a"
+var appVersion = "dev"
 
 func main() {
 	startedAt := time.Now().UTC()

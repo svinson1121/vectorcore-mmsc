@@ -19,10 +19,10 @@ apt install -y \
 
 This repository currently declares:
 
-- Go `1.23.0`
-- toolchain `go1.24.5`
+- Go `1.26.0`
+- toolchain `go1.26.0`
 
-Install a current Go 1.24.x toolchain and ensure `go` is on `PATH`.
+Install a current Go 1.26.x toolchain and ensure `go` is on `PATH`.
 
 Check with:
 

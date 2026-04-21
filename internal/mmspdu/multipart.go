@@ -224,7 +224,7 @@ func decodePartContentTypePayload(data []byte) (ContentTypeValue, error) {
 		if keyRaw == "" {
 			continue
 		}
-		value, err := decodePartHeaderTextValue(valueRaw)
+		value, err := decodeContentTypeParamValue(keyRaw, valueRaw)
 		if err != nil {
 			return ContentTypeValue{}, err
 		}
