@@ -1,76 +1,81 @@
 # VectorCore MMSC
 
-A standards-based Multimedia Messaging Service Centre (MMSC) implementing OMA MMS 1.3, written in Go.
-
-Designed for lab deployments, test networks, and educational use. Supports all major MMS interfaces, a web-based administration UI, automatic message expiry, and CGRateS billing integration.
-
----
+VectorCore MMSC is a Go-based Multimedia Messaging Service Centre for lab, test-network, and integration use. It implements the major MMS-facing interfaces, embeds its web admin UI into the service binary, and supports SQLite or PostgreSQL plus multiple content-store backends.
 
 ## Features
 
-- **MM1**  WAP/HTTP interface for mobile device submission and retrieval
-- **MM3**  Email relay (inbound SMTP and outbound)
-- **MM4**  Inter-MMSC SMTP relay for cross-operator delivery
-- **MM7**  VASP / application server integration (SOAP and EAIF)
-- **WAP Push** via SMPP for MT message notification
-- **Automatic message expiry** configurable default and hard ceiling, sweep runs every minute
-- **CGRateS billing export** CDR CSV files written on a configurable interval
-- **Media adaptation** size limits and content-type filtering per subscriber class (requires libvips and ffmpeg)
-- **Web Admin UI**  message inspection, queue management, peers, VASPs, SMPP status
-- **SQLite and PostgreSQL** SQLite for lab/test, PostgreSQL for production
-- **Filesystem, S3, and tiered object storage** for MMS payloads
-
----
+- **MM1** handset-facing WAP/HTTP submission and retrieval
+- **MM3** inbound SMTP and outbound email relay
+- **MM4** inter-MMSC SMTP relay
+- **MM7** VASP integration with SOAP and EAIF handling
+- **SMPP-backed WAP Push** for MT notification delivery
+- **Automatic expiry sweeping** with configurable default expiry and hard retention ceiling
+- **CGRateS-compatible CDR export** with watermark-based incremental billing files
+- **Filesystem, S3, and tiered payload storage**
+- **Embedded admin API and UI** for messages, peers, VASPs, MM3 relay, SMPP upstreams, adaptation classes, and runtime status
+- **Runtime-backed mutable configuration** reloaded from the database without restarting the process
 
 ## Interfaces
 
-| Interface | Protocol | Default Port | Description |
+| Surface | Protocol | Default Listen | Notes |
 |---|---|---|---|
-| MM1 | WAP/HTTP | 8002 | Mobile device submit and retrieve |
-| MM3 | SMTP | 2026 | Email relay inbound |
-| MM4 | SMTP | 2025 | Inter-MMSC relay |
-| MM7 | HTTP/SOAP | 8007 | VASP / application server |
-| Admin API + UI | HTTP | 8080 | Web administration |
-
----
+| MM1 | HTTP | `:8002` | Handset submit/retrieve; default retrieve path is `/mms/retrieve` |
+| MM3 | SMTP | `:2026` | Inbound email relay listener |
+| MM4 | SMTP | `:2025` | Inter-MMSC listener |
+| MM7 SOAP | HTTP | `:8007` | Default path `/mm7` |
+| MM7 EAIF | HTTP | `:8007` | Default path `/eaif` |
+| Admin API + UI | HTTP | `:8080` | API, embedded SPA, `/healthz`, `/readyz`, `/metrics` |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.22+
-- Node.js 20+ (for building the UI)
-- SQLite (bundled) or PostgreSQL 13+
+- Go `1.23.x` toolchain
+- `make`
+- `npm` for the web UI build
+- A C toolchain (`build-essential` on Debian/Ubuntu) for CGO-backed builds such as SQLite
 
 ### Build
 
+`make build` is the canonical build path. It rebuilds the embedded web UI first and then compiles `bin/mmsc`.
+
 ```bash
-# Build the binary
-make clean
-make
+npm install --prefix web
+make build
 ```
 
 ### Configure
 
-Copy and edit the example configuration:
+The checked-in [`config.yaml`](/usr/src/vectorcore-mmsc/config.yaml) already targets a local SQLite database and filesystem payload storage, so it is a usable starting point as-is.
+
+To create a separate local config:
 
 ```bash
 cp config.yaml my-config.yaml
 ```
 
-Minimum required settings:
+Important settings in the shipped config:
 
 ```yaml
 database:
   driver: sqlite
-  dsn: "./mmsc.db"
+  dsn: "./vectorcore-mmsc.db"
 
 mm1:
   listen: ":8002"
-  retrieve_base_url: "http://your-mmsc-host:8002/mms/retrieve"
+  retrieve_base_url: "http://localhost:8002/mms/retrieve"
 
 mm4:
-  hostname: "mmsc.yourdomain.com"
+  inbound_listen: ":2025"
+  hostname: "mmsc.localdomain"
+
+mm7:
+  listen: ":8007"
+  path: "/mm7"
+  eaif_path: "/eaif"
+
+api:
+  listen: ":8080"
 
 store:
   backend: filesystem
@@ -84,22 +89,35 @@ log:
 ### Run
 
 ```bash
-./bin/mmsc -c my-config.yaml
+./bin/mmsc -c config.yaml
 ```
 
-The Admin UI is available at `http://localhost:8080`.
+Useful flags:
 
----
+- `-c` or `-config-file` to select a config path
+- `-d` to enable debug logging to stdout in addition to the log file
+- `-v` to print the embedded build version and exit
 
-## Configuration
+After startup:
 
-All configuration lives in a single YAML file. Key sections:
+- Admin UI: `http://localhost:8080/`
+- Health: `http://localhost:8080/healthz`
+- Readiness: `http://localhost:8080/readyz`
+- Metrics: `http://localhost:8080/metrics`
+
+For package and toolchain details, see [docs/BUILD.md](/usr/src/vectorcore-mmsc/docs/BUILD.md).
+
+## Configuration Notes
+
+All static configuration is loaded from YAML. The checked-in [`config.yaml`](/usr/src/vectorcore-mmsc/config.yaml) is the best current reference for defaults used in local operation.
+
+Key sections include:
 
 ```yaml
 limits:
-  max_message_size_bytes: 5242880  # 5 MB ingress limit
-  default_message_expiry: 168h     # 7 days if no expiry in PDU
-  max_message_retention: 720h      # 30 day hard ceiling
+  max_message_size_bytes: 5242880
+  default_message_expiry: 168h
+  max_message_retention: 720h
 
 billing:
   enabled: false
@@ -107,6 +125,7 @@ billing:
   interval: 1h
   tenant: "cgrates.org"
   req_type: "*postpaid"
+  node_id: ""
 
 adapt:
   enabled: false
@@ -114,63 +133,59 @@ adapt:
   ffmpeg_path: "/usr/bin/ffmpeg"
 ```
 
-See the full configuration reference in the [user manual](docs/VectorCore-MMSC-Manual-0.1.0a.md).
+Runtime-managed objects such as MM4 peers, MM3 relay settings, MM7 VASPs, SMPP upstreams, and adaptation classes are stored in the database and exposed through the admin API/UI. PostgreSQL uses `LISTEN/NOTIFY` for refresh; SQLite falls back to polling with `database.runtime_reload_interval`.
 
----
+The repository also contains a longer manual at [docs/VectorCore-MMSC-Manual-0.1.0a.md](/usr/src/vectorcore-mmsc/docs/VectorCore-MMSC-Manual-0.1.0a.md), but the source tree and checked-in config are the current source of truth for build and runtime behavior.
+
+## Interoperability Notes
+
+- The MM1 regression corpus includes a SONIM-originated handset fixture at `test/pdus/m-send-req-sonim.bin` to keep the added SONIM parsing support covered.
+- In lab validation, the MMSC has also been tested with multiple iPhones, a Nokia 224 4G handset, and a SONIM Android-based UE.
 
 ## Message Flow
 
-```
+```text
 UE submits MMS (m-send-req)
-        │
-        ▼
+        |
+        v
    MM1 Handler
-        │
-        ├── Route: local  ──► Store payload ──► WAP push via SMPP
-        │                                              │
-        │                                              ▼
-        │                                    UE retrieves (m-retrieve-conf)
-        │
-        ├── Route: MM4  ──► SMTP relay to remote MMSC
-        │
-        └── Route: MM3  ──► Email relay
+        |
+        +-- Route: local  --> Store payload --> WAP push via SMPP
+        |                                         |
+        |                                         v
+        |                               UE retrieves (m-retrieve-conf)
+        |
+        +-- Route: MM4 --> SMTP relay to remote MMSC
+        |
+        +-- Route: MM3 --> Email relay
+        |
+        +-- Route: MM7 --> VASP delivery/reporting
 ```
-
----
 
 ## Billing
 
-When enabled, the MMSC writes CGRateS-compatible CDR CSV files to the configured export directory. Each file covers one export interval and contains one row per message with fields matching the CGRateS `cdrc` importer format.
+When billing export is enabled, the service writes CGRateS-compatible CSV files into `billing.export_dir` on the configured interval. Each export run only includes rows newer than the timestamp stored in `.watermark`.
 
-File naming:
-```
+Filename format:
+
+```text
 MMSC_CDR_{node_id}_{YYYYMMDD}_{HHMM}_{sequence}.csv
 ```
 
-A `.watermark` file in the export directory tracks the last exported record so no records are duplicated or missed across restarts.
+If `billing.node_id` is empty, the exporter falls back to `mm4.hostname`.
 
----
+## Admin API And UI
 
-## Admin UI
+The admin server on `api.listen` serves both the API and the embedded SPA.
 
-The web UI is served at port 8080 and provides:
+Main API groups:
 
-- **Dashboard** — queue depth, delivery counts, SMPP status, uptime
-- **Messages** — full message list with filtering, inspect modal, operator actions, event trail
-- **Peers** — MM4 inter-MMSC peer management
-- **MM3** — email relay configuration
-- **VASPs** — MM7 VASP credential management
-- **Adaptation** — media adaptation class profiles
-- **OAM** — operations and service status
+- `/api/v1/messages` for message inspection, status changes, delete, and requeue/note actions
+- `/api/v1/peers` for MM4 peer routing
+- `/api/v1/mm3/relay` for outbound email relay configuration
+- `/api/v1/vasps` for MM7 VASP credentials and protocol selection
+- `/api/v1/smpp/upstreams` and `/api/v1/smpp/status` for notification-delivery connectivity
+- `/api/v1/adaptation/classes` for adaptation policy classes
+- `/api/v1/runtime`, `/api/v1/system/status`, and `/api/v1/system/config` for live operational state
 
----
-
-## Version
-
-**0.1.0a**
-
----
-
-## License
-
-See [LICENSE](LICENSE).
+The shipped UI currently includes Dashboard, Messages, Peers, MM3, VASPs, Adaptation, Config, and OAM views.

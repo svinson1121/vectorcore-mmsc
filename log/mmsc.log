@@ -1,0 +1,135 @@
+{"level":"info","ts":"2026-04-01T03:53:38.172Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T03:53:38.174Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T03:53:38.174Z","caller":"mmsc/main.go:267","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T03:53:38.174Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T03:53:38.174Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T03:56:40.428Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T03:56:40.430Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T03:56:40.430Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T03:56:40.430Z","caller":"mmsc/main.go:267","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T03:56:40.430Z","caller":"mmsc/main.go:256","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:05:42.570Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:05:42.572Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:05:42.572Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:05:42.572Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:05:42.572Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:05:47.417Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:05:47.419Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:05:47.419Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:05:47.419Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:05:47.419Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:09:21.275Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:09:21.277Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:09:21.277Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:09:21.277Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:09:21.277Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:12:45.021Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:12:45.023Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:12:45.023Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:12:45.023Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:12:45.023Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:14:49.004Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:14:49.006Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:14:49.006Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:14:49.006Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:14:49.006Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:18:39.473Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:18:39.475Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:18:39.475Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:18:39.475Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:18:39.475Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:25:58.799Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:25:58.801Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:25:58.801Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:25:58.801Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:25:58.801Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T04:29:06.290Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T04:29:06.293Z","caller":"mmsc/main.go:268","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T04:29:06.293Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T04:29:06.293Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T04:29:06.293Z","caller":"mmsc/main.go:257","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T12:05:13.975Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T12:05:13.977Z","caller":"mmsc/main.go:274","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T12:05:13.977Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T12:05:13.977Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T12:05:13.977Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T12:07:46.829Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":0}
+{"level":"info","ts":"2026-04-01T12:07:46.831Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T12:07:46.831Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T12:07:46.831Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T12:07:46.831Z","caller":"mmsc/main.go:274","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T12:10:16.925Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":1}
+{"level":"info","ts":"2026-04-01T12:10:16.927Z","caller":"mmsc/main.go:274","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T12:10:16.927Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T12:10:16.927Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T12:10:16.927Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-01T12:14:29.552Z","caller":"config/watcher.go:85","msg":"runtime snapshot refreshed","reason":"startup","mm4_peers":0,"mm7_vasps":0,"smpp_upstreams":1}
+{"level":"info","ts":"2026-04-01T12:14:29.554Z","caller":"mmsc/main.go:274","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-01T12:14:29.554Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-01T12:14:29.554Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-01T12:14:29.554Z","caller":"mmsc/main.go:263","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:05:51.841Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:05:51.842Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:05:51.842Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:05:51.842Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:05:51.842Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:05:57.728Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:05:57.728Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:05:57.728Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:05:57.728Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:05:57.728Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:15:39.432Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:15:39.432Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:15:39.432Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:15:39.432Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:15:39.432Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:20:04.694Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:20:04.694Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:20:04.694Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:20:04.694Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:20:04.694Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:38:35.915Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:38:35.915Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T05:38:35.915Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:38:35.915Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:38:35.915Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:46:06.745Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T05:46:06.745Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T05:46:06.745Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T05:46:06.745Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T05:46:06.745Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T06:01:13.147Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T06:01:13.147Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T06:01:13.147Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T06:01:13.147Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T06:01:13.147Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T06:12:19.623Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T06:12:19.623Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T06:12:19.623Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T06:12:19.623Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T06:12:19.623Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T06:17:24.208Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T06:17:24.208Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T06:17:24.209Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T06:17:24.209Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T06:17:24.209Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T06:28:06.953Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T06:28:06.953Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T06:28:06.953Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T06:28:06.953Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T06:28:06.953Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T13:19:28.231Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T13:19:28.232Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T13:19:28.231Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T13:19:28.231Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T13:19:28.231Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T13:22:00.936Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T13:22:00.936Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T13:22:00.936Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T13:22:00.936Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}
+{"level":"info","ts":"2026-04-02T13:22:00.936Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T13:52:22.587Z","caller":"mmsc/main.go:319","msg":"starting listener","name":"mm3","listen":"[::]:2026"}
+{"level":"info","ts":"2026-04-02T13:52:22.587Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm7","listen":":8007"}
+{"level":"info","ts":"2026-04-02T13:52:22.587Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"mm1","listen":":8002"}
+{"level":"info","ts":"2026-04-02T13:52:22.587Z","caller":"mmsc/main.go:281","msg":"starting listener","name":"admin","listen":":8080"}
+{"level":"info","ts":"2026-04-02T13:52:22.587Z","caller":"mmsc/main.go:292","msg":"starting listener","name":"mm4","listen":"[::]:2025"}

@@ -1,12 +1,9 @@
 database:
-  driver: sqlite   # sqlite or postgres
+  driver: sqlite
   dsn: "./vectorcore-mmsc.db"
   max_open_conns: 10
   max_idle_conns: 5
   runtime_reload_interval: 5s
-  #driver: postgres
-  #dsn: "postgres://mmsc:mmsc@localhost/mmsc"
-
 
 mm1:
   listen: ":8002"
@@ -54,8 +51,8 @@ adapt:
 
 limits:
   max_message_size_bytes: 5242880  # 5 MB
-  default_message_expiry: 168h     # 7 days applied when MM1 message carries no expiry
-  max_message_retention: 720h      # 30 days hard ceiling regardless of expiry
+  default_message_expiry: 168h     # 7 days — applied when MM1 message carries no expiry
+  max_message_retention: 720h      # 30 days — hard ceiling regardless of expiry
 
 billing:
   enabled: false

@@ -1,28 +1,30 @@
 # Build Guide
 
-This document covers the packages needed to build and run `vectorcore-mmsc` on a Debian or Ubuntu system, plus the basic build and run flow for this repository.
+This document describes the current build and run flow for `vectorcore-mmsc` from this repository.
 
 ## Required Packages
 
-These are the packages needed for the current codebase:
+On Debian or Ubuntu, the baseline build dependencies are:
 
 ```bash
 apt update
 apt install -y \
   ca-certificates \
   build-essential \
+  git \
   make \
-  git
+  npm
 ```
+
+`build-essential` is needed because the repository uses CGO-backed dependencies such as SQLite.
 
 ## Go Toolchain
 
-This repository currently declares:
+The current `go.mod` declares:
 
-- Go `1.26.0`
-- toolchain `go1.26.0`
+- Go `1.23.0`
 
-Install a current Go 1.26.x toolchain and ensure `go` is on `PATH`.
+Install a Go `1.23.x` toolchain and ensure `go` is on `PATH`.
 
 Check with:
 
@@ -30,53 +32,53 @@ Check with:
 go version
 ```
 
+## Web UI Dependencies
+
+The main `make build` target rebuilds the embedded admin UI from `web/`, so install its dependencies first:
+
+```bash
+npm install --prefix web
+```
+
+If you change frontend assets, rebuild before starting the service so the embedded `web/dist` contents stay current.
+
 ## Optional Runtime and Feature Packages
 
-These are not strictly required for a basic build, but are needed for specific features.
-
-### Image Adaptation
-
-Image adaptation currently uses the in-process Go image path by default. A configured `libvips_path` is optional today and reserved for future external-tool integration.
-
-If you want the `vips` binary available for future use:
-
-```bash
-apt install -y libvips-tools
-```
-
-That will pull in the runtime library such as `libvips42t64` automatically.
-
-If you ever switch to direct library bindings instead of shelling out to the `vips` binary, also install:
-
-```bash
-apt install -y libvips-dev
-```
+These are not required for a basic local build, but they are needed for specific runtime features.
 
 ### Audio and Video Adaptation
 
-Audio and video adaptation uses the external `ffmpeg` binary when adaptation is enabled:
+If `adapt.enabled` is `true`, startup validation requires `ffmpeg`:
 
 ```bash
 apt install -y ffmpeg
 ```
 
+### Image Adaptation
+
+Image adaptation currently uses the in-process Go image path. A configured `adapt.libvips_path` is optional; if you set it, the service validates that the `vips` binary exists and is executable.
+
+```bash
+apt install -y libvips-tools
+```
+
 ### PostgreSQL Client Access
 
-If you plan to point the service at PostgreSQL instead of SQLite, a client package is useful for testing connectivity manually:
+If you want to run against PostgreSQL instead of SQLite, the service supports a pgx-backed DSN. Installing a client is useful for manual connectivity checks:
 
 ```bash
 apt install -y postgresql-client
 ```
 
-For the optional PostgreSQL integration test path, export a DSN before running `go test`:
+For the optional PostgreSQL integration-test path, export a DSN before running tests:
 
 ```bash
 export VECTORCORE_MMSC_TEST_POSTGRES_DSN='postgres://user:pass@127.0.0.1:5432/postgres?sslmode=disable'
 ```
 
-The PostgreSQL-backed tests are skipped automatically when this variable is unset.
+Those PostgreSQL-backed tests are skipped automatically when the variable is unset.
 
-## Repository Build
+## Build
 
 From the repository root:
 
@@ -84,51 +86,64 @@ From the repository root:
 make build
 ```
 
-The binary is written to:
+The default `build` target:
+
+- runs `npm --prefix web run build`
+- compiles `./cmd/mmsc`
+- writes the binary to `./bin/mmsc`
+
+The binary version is stamped from `Makefile` `VERSION`, which can be overridden at build time:
 
 ```bash
-./bin/mmsc
+make build VERSION=0.3.2B
 ```
 
-## Run Tests
+## Test
+
+Run the repository test suite with:
 
 ```bash
 make test
 ```
 
-## Example Config
+## Common Development Targets
 
-An example config file is already present at:
+```bash
+make fmt
+make tidy
+make clean
+```
+
+## Run
+
+The checked-in config file is at:
 
 ```bash
 ./config.yaml
 ```
 
-The binary uses `-c` for the config file path.
-
-## Run the Service
+Start the service with:
 
 ```bash
 ./bin/mmsc -c config.yaml
 ```
 
-Or via `make`:
+Or through `make`:
 
 ```bash
 make run
 ```
 
-## Clean Build Output
+Useful flags:
 
-```bash
-make clean
-```
+- `-c` or `-config-file` to select a config file
+- `-d` to mirror debug logs to stdout
+- `-v` to print the embedded build version
 
 ## Notes
 
-- The default example config uses SQLite and local filesystem storage, which is the easiest way to start the service locally.
-- External adaptation tools are validated at startup only when `adapt.enabled` is `true`.
-- Current startup validation requires `ffmpeg` when adaptation is enabled.
-- A configured `libvips_path` is validated if present, but it is not currently required for image adaptation.
-- MM4 listens on a TCP port, so make sure the configured port is available.
-- If you change the config path, pass it with `-c /path/to/config.yaml`.
+- The shipped `config.yaml` uses SQLite plus filesystem storage, which is the simplest local setup.
+- The admin server defaults to `:8080` and serves the API, SPA, `/healthz`, `/readyz`, and `/metrics`.
+- MM7 defaults to `:8007` with SOAP on `/mm7` and EAIF on `/eaif`.
+- Mutable runtime config is database-backed. PostgreSQL refresh uses `LISTEN/NOTIFY`; SQLite refresh polls on `database.runtime_reload_interval`.
+- Message expiry sweeping runs every minute.
