@@ -15,6 +15,7 @@ const (
 	DestinationLocal
 	DestinationMM4
 	DestinationMM3
+	DestinationReject
 )
 
 type Result struct {
@@ -30,6 +31,8 @@ func (d Destination) String() string {
 		return "mm4"
 	case DestinationMM3:
 		return "mm3"
+	case DestinationReject:
+		return "reject"
 	default:
 		return "unknown"
 	}
@@ -47,20 +50,31 @@ func NewEngine(repo db.Repository) *Engine {
 
 func (e *Engine) Resolve(ctx context.Context, address string) (*Result, error) {
 	addr := normalizeAddress(address)
-	if strings.Contains(addr, "@") {
-		peer, err := e.peers.Resolve(ctx, addr)
-		if err != nil {
-			return nil, err
-		}
-		if peer != nil {
-			return &Result{Destination: DestinationMM4, Peer: peer}, nil
-		}
-		return &Result{Destination: DestinationMM3}, nil
-	}
 	if addr == "" {
 		return &Result{Destination: DestinationUnknown}, nil
 	}
-	return &Result{Destination: DestinationLocal}, nil
+	route, peer, err := e.peers.ResolveRoute(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+	if route == nil {
+		if strings.Contains(addr, "@") {
+			return &Result{Destination: DestinationReject}, nil
+		}
+		return &Result{Destination: DestinationLocal}, nil
+	}
+	switch route.EgressType {
+	case "local":
+		return &Result{Destination: DestinationLocal}, nil
+	case "mm3":
+		return &Result{Destination: DestinationMM3}, nil
+	case "mm4":
+		return &Result{Destination: DestinationMM4, Peer: peer}, nil
+	case "reject":
+		return &Result{Destination: DestinationReject}, nil
+	default:
+		return &Result{Destination: DestinationReject}, nil
+	}
 }
 
 func (e *Engine) ResolveRecipients(ctx context.Context, addresses []string) (*Result, error) {
@@ -71,10 +85,25 @@ func (e *Engine) ResolveRecipients(ctx context.Context, addresses []string) (*Re
 	if err != nil {
 		return nil, err
 	}
+	if first.Destination == DestinationReject {
+		for _, address := range addresses[1:] {
+			next, err := e.Resolve(ctx, address)
+			if err != nil {
+				return nil, err
+			}
+			if next.Destination != DestinationReject {
+				return nil, fmt.Errorf("mixed recipient destinations are not supported in a single message")
+			}
+		}
+		return first, nil
+	}
 	for _, address := range addresses[1:] {
 		next, err := e.Resolve(ctx, address)
 		if err != nil {
 			return nil, err
+		}
+		if next.Destination == DestinationReject {
+			return nil, fmt.Errorf("mixed recipient destinations are not supported in a single message")
 		}
 		if first.Destination != next.Destination {
 			return nil, fmt.Errorf("mixed recipient destinations are not supported in a single message")

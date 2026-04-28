@@ -17,6 +17,14 @@ import (
 
 func TestInboundHandleStoresAndDispatchesLocalNotificationPostgres(t *testing.T) {
 	repo := testpg.OpenRepository(t)
+	addMM4TestRoute(t, repo, db.MM4Route{
+		Name:       "Local test prefix",
+		MatchType:  "msisdn_prefix",
+		MatchValue: "+1202555",
+		EgressType: "local",
+		Priority:   100,
+		Active:     true,
+	})
 
 	contentStore, err := store.New(context.Background(), config.StoreConfig{
 		Backend: "filesystem",

@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { useToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
-import { asArray, csv, formatBytes, sendJSON, useAPI, VASP } from "../lib/api";
+import { asArray, csv, formatBytes, sendJSON, sendRequest, useAPI, VASP } from "../lib/api";
 
 type VASPFormState = {
   VASPID: string;
@@ -114,7 +114,7 @@ export function VASPs() {
     }
     try {
       setError("");
-      await sendJSON(`/api/v1/vasps/${encodeURIComponent(vaspID)}`, "DELETE", null);
+      await sendRequest(`/api/v1/vasps/${encodeURIComponent(vaspID)}`, "DELETE");
       await vasps.reload();
       toast.success("VASP deleted", vaspID);
     } catch (err) {

@@ -73,6 +73,50 @@ func (f *fakeMM3Sender) Send(_ context.Context, msg *message.Message) error {
 	return nil
 }
 
+func runMM1TestMigrations(t *testing.T, repo db.Repository) {
+	t.Helper()
+	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
+		t.Fatalf("run migrations: %v", err)
+	}
+	addMM1TestRoutes(t, repo)
+}
+
+func addMM1TestRoutes(t *testing.T, repo db.Repository) {
+	t.Helper()
+	routes := []db.MM4Route{
+		{
+			Name:       "Local test prefix",
+			MatchType:  "msisdn_prefix",
+			MatchValue: "+1202555",
+			EgressType: "local",
+			Priority:   100,
+			Active:     true,
+		},
+		{
+			Name:         "MM4 test domain",
+			MatchType:    "recipient_domain",
+			MatchValue:   "peer.example.net",
+			EgressType:   "mm4",
+			EgressTarget: "peer.example.net",
+			Priority:     100,
+			Active:       true,
+		},
+		{
+			Name:       "MM3 test domain",
+			MatchType:  "recipient_domain",
+			MatchValue: "example.org",
+			EgressType: "mm3",
+			Priority:   100,
+			Active:     true,
+		},
+	}
+	for _, route := range routes {
+		if err := repo.UpsertMM4Route(context.Background(), route); err != nil {
+			t.Fatalf("upsert route %s: %v", route.Name, err)
+		}
+	}
+}
+
 type fakeMTReporter struct {
 	deliveryMsg    *message.Message
 	deliveryStatus message.Status
@@ -114,9 +158,7 @@ func TestMOHandlerStoresAndResponds(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -281,6 +323,100 @@ func TestMOHandlerStoresAndResponds(t *testing.T) {
 	}
 }
 
+func TestMOHandlerRejectRouteSendsFailureDeliveryReport(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.Database.Driver = "sqlite"
+	cfg.Database.DSN = t.TempDir() + "/mm1-reject-report.db"
+	cfg.Store.Backend = "filesystem"
+	cfg.Store.Filesystem.Root = t.TempDir()
+	cfg.MM4.Hostname = "mmsc.example.net"
+
+	repo, err := db.Open(context.Background(), db.OpenOptions{
+		Driver: cfg.Database.Driver,
+		DSN:    cfg.Database.DSN,
+	})
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer repo.Close()
+	runMM1TestMigrations(t, repo)
+	if err := repo.UpsertMM4Route(context.Background(), db.MM4Route{
+		Name:       "Reject recipient",
+		MatchType:  "msisdn_exact",
+		MatchValue: "+12025550101",
+		EgressType: "reject",
+		Priority:   500,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert reject route: %v", err)
+	}
+
+	contentStore, err := store.New(context.Background(), cfg.Store)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	defer contentStore.Close()
+
+	pushSender := &fakePushSender{}
+	server := NewServer(cfg, repo, contentStore, routing.NewEngine(repo), nil, nil, nil, nil)
+	server.handler = NewMOHandler(cfg, repo, contentStore, routing.NewEngine(repo), pushSender, nil, nil, nil)
+	reqPDU := mmspdu.NewSendReqWithParts("txn-reject-report", "+12025550100", []string{"+12025550101"}, []mmspdu.Part{
+		{ContentType: "text/plain", Data: []byte("blocked")},
+	})
+	reqPDU.Headers[mmspdu.FieldDeliveryReport] = mmspdu.NewTokenValue(mmspdu.FieldDeliveryReport, mmspdu.BooleanYes)
+	reqBody, err := mmspdu.Encode(reqPDU)
+	if err != nil {
+		t.Fatalf("encode req: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/mms", bytes.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/vnd.wap.mms-message")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	messages, err := repo.ListMessages(context.Background(), db.MessageFilter{Limit: 10})
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(messages) != 1 {
+		t.Fatalf("expected one stored message, got %d", len(messages))
+	}
+	if messages[0].Status != message.StatusRejected || !messages[0].DeliveryReport {
+		t.Fatalf("unexpected rejected message: %#v", messages[0])
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for pushSender.calls != 1 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if pushSender.calls != 1 || pushSender.msisdn != "+12025550100" || pushSender.sourceAddr != "+12025550101" {
+		t.Fatalf("unexpected failure report push state: %#v", pushSender)
+	}
+	unwrapped, err := wappush.UnwrapMMSPDU(pushSender.push)
+	if err != nil {
+		t.Fatalf("unwrap report push: %v", err)
+	}
+	report, err := mmspdu.Decode(unwrapped)
+	if err != nil {
+		t.Fatalf("decode report: %v", err)
+	}
+	if report.MessageType != mmspdu.MsgTypeDeliveryInd {
+		t.Fatalf("unexpected report type: %x", report.MessageType)
+	}
+	parsed, err := mmspdu.ParseDeliveryInd(report)
+	if err != nil {
+		t.Fatalf("parse delivery report: %v", err)
+	}
+	if parsed.MessageID != messages[0].ID || parsed.To != "+12025550100/TYPE=PLMN" || parsed.Status != mmspdu.StatusRejected {
+		t.Fatalf("unexpected delivery report: %#v", parsed)
+	}
+}
+
 func TestMOHandlerRejectsSendReqWithoutParts(t *testing.T) {
 	t.Parallel()
 
@@ -299,9 +435,7 @@ func TestMOHandlerRejectsSendReqWithoutParts(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -356,9 +490,7 @@ func TestMOHandlerUsesProxyMSISDNForInsertAddress(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -423,9 +555,7 @@ func TestMOHandlerPushesEachLocalRecipient(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -481,9 +611,7 @@ func TestDispatchLocalNotificationEncodesAtInContentLocation(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -546,9 +674,7 @@ func TestMOHandlerAcceptsAndQueuesWhenLocalNotificationDispatchFails(t *testing.
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -633,9 +759,7 @@ func TestMOHandlerRespondsBeforeLocalNotificationDispatchCompletes(t *testing.T)
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -704,9 +828,7 @@ func TestMOHandlerPreservesMessageSizeWhenAdaptationReturnsNoParts(t *testing.T)
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -766,9 +888,7 @@ func TestMOHandlerRelaysMM4Route(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 	if err := repo.UpsertMM4Peer(context.Background(), db.MM4Peer{
 		Domain:     "peer.example.net",
 		SMTPHost:   "smtp.peer.example.net",
@@ -830,9 +950,7 @@ func TestForwardReqReturnsForwardConf(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -888,9 +1006,7 @@ func TestMOHandlerRoutesMM3Email(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -944,9 +1060,7 @@ func TestMOHandlerAppliesAdaptationClassToRetrievedContent(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 	if err := repo.UpsertAdaptationClass(context.Background(), db.AdaptationClass{
 		Name:              "default",
 		MaxMsgSizeBytes:   307200,
@@ -1050,9 +1164,7 @@ func TestMTHandlerReportsBackToMM7Origin(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -1129,9 +1241,7 @@ func TestAcknowledgeIndActsAsRetrievedStatus(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -1199,9 +1309,7 @@ func TestRetrieveRejectsStoredMessageWithoutParts(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -1263,9 +1371,7 @@ func TestMOHandlerRejectsLocalMessageWhenAdaptationFails(t *testing.T) {
 		t.Fatalf("open repo: %v", err)
 	}
 	defer repo.Close()
-	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
+	runMM1TestMigrations(t, repo)
 	if err := repo.UpsertAdaptationClass(context.Background(), db.AdaptationClass{
 		Name:              "default",
 		MaxMsgSizeBytes:   4,

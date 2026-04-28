@@ -29,6 +29,9 @@ type Repository interface {
 	UpsertMM4Peer(context.Context, MM4Peer) error
 	ListMM4Peers(context.Context) ([]MM4Peer, error)
 	DeleteMM4Peer(context.Context, string) error
+	UpsertMM4Route(context.Context, MM4Route) error
+	ListMM4Routes(context.Context) ([]MM4Route, error)
+	DeleteMM4Route(context.Context, int64) error
 	UpsertMM3Relay(context.Context, MM3Relay) error
 	GetMM3Relay(context.Context) (*MM3Relay, error)
 	UpsertMM7VASP(context.Context, MM7VASP) error
@@ -106,6 +109,7 @@ type Subscriber struct {
 }
 
 type MM4Peer struct {
+	Name       string
 	Domain     string
 	SMTPHost   string
 	SMTPPort   int
@@ -115,6 +119,18 @@ type MM4Peer struct {
 	TLSEnabled bool
 	AllowedIPs []string
 	Active     bool
+}
+
+type MM4Route struct {
+	ID               int64
+	Name             string
+	MatchType        string
+	MatchValue       string
+	EgressType       string
+	EgressTarget     string
+	EgressPeerDomain string
+	Priority         int
+	Active           bool
 }
 
 type MM3Relay struct {

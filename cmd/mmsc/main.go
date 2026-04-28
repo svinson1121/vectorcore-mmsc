@@ -20,6 +20,7 @@ import (
 
 	"github.com/vectorcore/vectorcore-mmsc/api/rest"
 	"github.com/vectorcore/vectorcore-mmsc/internal/adapt"
+	"github.com/vectorcore/vectorcore-mmsc/internal/billing"
 	"github.com/vectorcore/vectorcore-mmsc/internal/config"
 	"github.com/vectorcore/vectorcore-mmsc/internal/db"
 	"github.com/vectorcore/vectorcore-mmsc/internal/message"
@@ -30,7 +31,6 @@ import (
 	"github.com/vectorcore/vectorcore-mmsc/internal/routing"
 	"github.com/vectorcore/vectorcore-mmsc/internal/smpp"
 	"github.com/vectorcore/vectorcore-mmsc/internal/store"
-	"github.com/vectorcore/vectorcore-mmsc/internal/billing"
 	"github.com/vectorcore/vectorcore-mmsc/internal/sweep"
 	"github.com/vectorcore/vectorcore-mmsc/migrations"
 )
@@ -125,9 +125,10 @@ func main() {
 	router := routing.NewEngine(repo)
 	mm4Router := mm4.NewPeerRouter(repo)
 	mm4Outbound := mm4.NewOutbound(mm4Router, cfg.MM4.Hostname)
+	mm4Outbound.SetEnvelopeOptions(cfg.MM4.SMTPEnvelopeFrom, cfg.MM4.SMTPEnvelopeRecipientDomain, cfg.MM4.RequestForwardAcknowledgement)
 	mm3Outbound := mm3.NewOutbound(runtimeStore, cfg.MM4.Hostname)
 	mm7Notifier := mm7.NewNotifier(repo, mm7.WithProtocol(cfg.MM7.Version, cfg.MM7.Namespace))
-	reporter := combinedReporter{mm7: mm7Notifier, mm4: mm4Outbound}
+	reporter := combinedReporter{repo: repo, mm1: smppManager, mm7: mm7Notifier, mm4: mm4Outbound}
 	mm1Server := &http.Server{
 		Addr:              cfg.MM1.Listen,
 		Handler:           withHTTPLogging("mm1", mm1.NewServer(cfg, repo, contentStore, router, smppManager, mm4Outbound, mm3Outbound, reporter)),
@@ -151,6 +152,7 @@ func main() {
 	defer mm3Listener.Close()
 
 	mm4Inbound := mm4.NewInboundServer(cfg, repo, contentStore, router, smppManager, cfg.MM4.Hostname)
+	mm4Inbound.SetForwardResponder(mm4Outbound)
 	mm3Inbound := mm3.NewInboundServer(cfg, repo, contentStore, router, smppManager, cfg.MM4.Hostname)
 
 	var servers serverGroup
@@ -160,7 +162,7 @@ func main() {
 	servers.startMM4(logger, mm4Listener, mm4Inbound)
 	servers.startMM3(logger, mm3Listener, mm3Inbound)
 
-	sweeper := sweep.New(cfg.Limits, repo, contentStore)
+	sweeper := sweep.New(cfg.Limits, repo, contentStore, reporter)
 	go sweeper.Run(ctx)
 
 	billingNodeID := cfg.Billing.NodeID

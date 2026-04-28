@@ -105,6 +105,9 @@ export function Messages() {
   }
 
   async function deleteMessage(id: string) {
+    if (!window.confirm(`Delete queued message ${id}? This removes the message record and stored payload.`)) {
+      return;
+    }
     try {
       setBusyID(id);
       setError("");
@@ -112,6 +115,9 @@ export function Messages() {
       await reload();
       if (selected?.ID === id) {
         setSelected(null);
+        setDetail(null);
+        setEvents([]);
+        setSubmissions([]);
       }
       toast.success("Queued message deleted", id);
     } catch (err) {

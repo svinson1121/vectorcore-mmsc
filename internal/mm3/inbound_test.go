@@ -196,7 +196,22 @@ func newMM3Repo(t *testing.T) db.Repository {
 	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
+	addMM3TestRoute(t, repo, db.MM4Route{
+		Name:       "Local test prefix",
+		MatchType:  "msisdn_prefix",
+		MatchValue: "+1202555",
+		EgressType: "local",
+		Priority:   100,
+		Active:     true,
+	})
 	return repo
+}
+
+func addMM3TestRoute(t *testing.T, repo db.Repository, route db.MM4Route) {
+	t.Helper()
+	if err := repo.UpsertMM4Route(context.Background(), route); err != nil {
+		t.Fatalf("upsert route %s: %v", route.Name, err)
+	}
 }
 
 func mustReadSMTPLine(t *testing.T, reader *bufio.Reader) string {

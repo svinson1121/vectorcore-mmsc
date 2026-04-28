@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -373,6 +374,60 @@ func TestRouterUpsertsPeer(t *testing.T) {
 	peers, err = repo.ListMM4Peers(context.Background())
 	if err != nil || len(peers) != 0 {
 		t.Fatalf("unexpected peers after delete: %#v err=%v", peers, err)
+	}
+}
+
+func TestRouterUpsertsMM4Route(t *testing.T) {
+	t.Parallel()
+
+	repo := newTestRepo(t)
+	handler := NewRouter(config.Default(), repo, config.NewRuntimeStore(), smpp.NewManager(), nil, "0.0.1d", time.Unix(0, 0))
+
+	if err := repo.UpsertMM4Peer(context.Background(), db.MM4Peer{
+		Name:       "Carrier A",
+		Domain:     "carrier-a.example.net",
+		SMTPHost:   "smtp.carrier-a.example.net",
+		SMTPPort:   25,
+		TLSEnabled: true,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert peer: %v", err)
+	}
+
+	routeBody, _ := json.Marshal(db.MM4Route{
+		Name:             "Carrier A prefix",
+		MatchType:        "msisdn_prefix",
+		MatchValue:       "+1202555",
+		EgressPeerDomain: "carrier-a.example.net",
+		Priority:         100,
+		Active:           true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/mm4/routes", bytes.NewReader(routeBody))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("unexpected route status: %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	routes, err := repo.ListMM4Routes(context.Background())
+	if err != nil || len(routes) != 1 {
+		t.Fatalf("unexpected routes: %#v err=%v", routes, err)
+	}
+
+	routes[0].Priority = 200
+	routeBody, _ = json.Marshal(routes[0])
+	putReq := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/mm4/routes/%d", routes[0].ID), bytes.NewReader(routeBody))
+	putRec := httptest.NewRecorder()
+	handler.ServeHTTP(putRec, putReq)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("unexpected route put status: %d body=%s", putRec.Code, putRec.Body.String())
+	}
+
+	delReq := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/mm4/routes/%d", routes[0].ID), nil)
+	delRec := httptest.NewRecorder()
+	handler.ServeHTTP(delRec, delReq)
+	if delRec.Code != http.StatusNoContent && delRec.Code != http.StatusOK {
+		t.Fatalf("unexpected route delete status: %d body=%s", delRec.Code, delRec.Body.String())
 	}
 }
 

@@ -19,6 +19,9 @@ func TestEncodeEnvelopeGoldenHeaders(t *testing.T) {
 		To:             []string{"+12025550101"},
 		Subject:        "golden",
 		DeliveryReport: true,
+		ReadReport:     true,
+		MessageClass:   message.ClassInformational,
+		Priority:       message.PriorityHigh,
 		Expiry:         &expiry,
 		Parts: []message.Part{{
 			ContentType:     "text/plain",
@@ -28,7 +31,7 @@ func TestEncodeEnvelopeGoldenHeaders(t *testing.T) {
 		}},
 	}
 
-	envelope, err := EncodeEnvelope(msg, "mmsc.example.net")
+	envelope, err := EncodeEnvelopeWithOptions(msg, "mmsc.example.net", EnvelopeOptions{AckRequest: true})
 	if err != nil {
 		t.Fatalf("encode envelope: %v", err)
 	}
@@ -46,6 +49,10 @@ func TestEncodeEnvelopeGoldenHeaders(t *testing.T) {
 		"x-mms-to: +12025550101/type=plmn\r\n",
 		"x-mms-expiry: 2026-04-02t12:00:00z\r\n",
 		"x-mms-delivery-report: yes\r\n",
+		"x-mms-read-reply: yes\r\n",
+		"x-mms-ack-request: yes\r\n",
+		"x-mms-message-class: informational\r\n",
+		"x-mms-priority: high\r\n",
 		"content-id: <text1>\r\n",
 		"content-location: text1.txt\r\n",
 		"\r\nhello\r\n",

@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { useToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
-import { asArray, csv, Peer, sendJSON, SMPPStatus, SMPPUpstream, smppStateLabel, useAPI } from "../lib/api";
+import { asArray, csv, Peer, sendJSON, sendRequest, SMPPStatus, SMPPUpstream, smppStateLabel, useAPI } from "../lib/api";
 
 type PeerTab = "mm4" | "smpp";
 
@@ -30,11 +30,12 @@ function MM4PeersTab() {
   const [editing, setEditing] = useState<Peer | null>(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
+    Name: "",
     Domain: "",
     SMTPHost: "",
     SMTPPort: "25",
     AllowedIPs: "",
-    TLSEnabled: true,
+    TLSEnabled: false,
     Active: true,
   });
   const peerList = asArray(peers.data.peers);
@@ -44,11 +45,12 @@ function MM4PeersTab() {
 
   function resetForm() {
     setForm({
+      Name: "",
       Domain: "",
       SMTPHost: "",
       SMTPPort: "25",
       AllowedIPs: "",
-      TLSEnabled: true,
+      TLSEnabled: false,
       Active: true,
     });
   }
@@ -64,6 +66,7 @@ function MM4PeersTab() {
     setEditing(item);
     setError("");
     setForm({
+      Name: item.Name || item.Domain,
       Domain: item.Domain,
       SMTPHost: item.SMTPHost,
       SMTPPort: String(item.SMTPPort),
@@ -79,6 +82,7 @@ function MM4PeersTab() {
     try {
       setError("");
       const body = {
+        Name: form.Name.trim() || form.Domain.trim(),
         Domain: form.Domain.trim(),
         SMTPHost: form.SMTPHost.trim(),
         SMTPPort: Number(form.SMTPPort) || 25,
@@ -113,7 +117,7 @@ function MM4PeersTab() {
     }
     try {
       setError("");
-      await sendJSON(`/api/v1/peers/${encodeURIComponent(domain)}`, "DELETE", null);
+      await sendRequest(`/api/v1/peers/${encodeURIComponent(domain)}`, "DELETE");
       await peers.reload();
       toast.success("Peer deleted", domain);
     } catch (err) {
@@ -149,7 +153,7 @@ function MM4PeersTab() {
       </div>
 
       <div className="flex justify-between mb-12">
-        <span className="text-muted text-sm">MM4 routing and inter-MMSC transport definitions</span>
+        <span className="text-muted text-sm">MM4 inter-MMSC transport endpoints</span>
         <div className="flex gap-8">
           <button className="btn btn-ghost btn-sm" type="button" onClick={() => void peers.reload()}>
             Refresh
@@ -176,6 +180,7 @@ function MM4PeersTab() {
             <thead>
               <tr>
                 <th>Domain</th>
+                <th>Name</th>
                 <th>SMTP Host</th>
                 <th>Port</th>
                 <th>Transport</th>
@@ -188,6 +193,7 @@ function MM4PeersTab() {
               {peerList.map((item) => (
                 <tr key={item.Domain}>
                   <td className="mono" style={{ fontWeight: 600 }}>{item.Domain}</td>
+                  <td>{item.Name || item.Domain}</td>
                   <td className="mono">{item.SMTPHost}</td>
                   <td className="mono">{item.SMTPPort}</td>
                   <td>{item.TLSEnabled ? "TLS" : "Plaintext"}</td>
@@ -217,6 +223,10 @@ function MM4PeersTab() {
               <div className="section-shell">
                 <h2>Peer Identity</h2>
                 <div className="surface-grid">
+                  <label className="field">
+                    <span>Name</span>
+                    <input className="input" value={form.Name} onChange={(event) => setForm({ ...form, Name: event.target.value })} />
+                  </label>
                   <label className="field">
                     <span>Domain</span>
                     <input className="input" value={form.Domain} disabled={Boolean(editing)} onChange={(event) => setForm({ ...form, Domain: event.target.value })} />
@@ -367,7 +377,7 @@ function SMPPUpstreamsTab() {
     }
     try {
       setError("");
-      await sendJSON(`/api/v1/smpp/upstreams/${encodeURIComponent(name)}`, "DELETE", null);
+      await sendRequest(`/api/v1/smpp/upstreams/${encodeURIComponent(name)}`, "DELETE");
       await Promise.all([status.reload(), upstreams.reload()]);
       toast.success("SMPP peer deleted", name);
     } catch (err) {

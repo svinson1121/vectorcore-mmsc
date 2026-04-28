@@ -32,17 +32,22 @@ type trackedPushSender interface {
 	SubmitWAPPushForMessage(context.Context, string, string, string, []byte) error
 }
 
+type ForwardResponder interface {
+	SendForwardResponse(context.Context, *message.Message, string) error
+}
+
 type InboundServer struct {
-	repo            db.Repository
-	store           store.Store
-	router          *routing.Engine
-	push            PushSender
-	hostname        string
-	adapt           *adapt.Pipeline
-	tlsCfg          *tls.Config
-	retrieveBaseURL string
-	defaultExpiry   time.Duration
-	maxRetention    time.Duration
+	repo             db.Repository
+	store            store.Store
+	router           *routing.Engine
+	push             PushSender
+	hostname         string
+	adapt            *adapt.Pipeline
+	tlsCfg           *tls.Config
+	retrieveBaseURL  string
+	defaultExpiry    time.Duration
+	maxRetention     time.Duration
+	forwardResponder ForwardResponder
 }
 
 func NewInboundServer(cfg *config.Config, repo db.Repository, contentStore store.Store, router *routing.Engine, push PushSender, hostname string) *InboundServer {
@@ -68,6 +73,10 @@ func NewInboundServer(cfg *config.Config, repo db.Repository, contentStore store
 		}
 	}
 	return server
+}
+
+func (s *InboundServer) SetForwardResponder(responder ForwardResponder) {
+	s.forwardResponder = responder
 }
 
 func (s *InboundServer) Handle(conn net.Conn) error {
@@ -313,7 +322,32 @@ func (s *InboundServer) handleDATA(ctx context.Context, conn net.Conn, mailFrom 
 		Summary:   "MM4 message received",
 		Detail:    fmt.Sprintf("from=%s size=%d", msg.From, msg.MessageSize),
 	})
+	s.sendForwardResponseIfRequested(ctx, msg, meta, log)
 	return s.dispatchLocalNotification(ctx, msg, routeResult)
+}
+
+func (s *InboundServer) sendForwardResponseIfRequested(ctx context.Context, msg *message.Message, meta *EnvelopeMeta, log *zap.Logger) {
+	if meta == nil || !meta.AckRequested || s.forwardResponder == nil {
+		return
+	}
+	if err := s.forwardResponder.SendForwardResponse(ctx, msg, "Ok"); err != nil {
+		log.Warn("mm4 forward response failed", zap.Error(err), zap.String("message_id", msg.ID))
+		_ = s.repo.AppendMessageEvent(ctx, db.MessageEvent{
+			MessageID: msg.ID,
+			Source:    "mm4",
+			Type:      "forward-response-failed",
+			Summary:   "MM4 forward response failed",
+			Detail:    err.Error(),
+		})
+		return
+	}
+	_ = s.repo.AppendMessageEvent(ctx, db.MessageEvent{
+		MessageID: msg.ID,
+		Source:    "mm4",
+		Type:      "forward-response",
+		Summary:   "MM4 forward response sent",
+		Detail:    "status=Ok",
+	})
 }
 
 func (s *InboundServer) handleDeliveryReport(ctx context.Context, msg *message.Message, meta *EnvelopeMeta) error {

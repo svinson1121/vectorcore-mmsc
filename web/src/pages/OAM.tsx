@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 
 import { Modal } from "../components/Modal";
-import { asArray, directionLabel, Message, originLabel, RuntimeSnapshot, SMPPStatus, smppStateLabel, statusLabel, SystemStatus, useAPI } from "../lib/api";
+import { useToast } from "../components/Toast";
+import { asArray, directionLabel, Message, originLabel, RuntimeSnapshot, sendRequest, SMPPStatus, smppStateLabel, statusLabel, SystemStatus, useAPI } from "../lib/api";
 
 export function OAM() {
+  const toast = useToast();
   const system = useAPI<SystemStatus>(
     "/api/v1/system/status",
     { version: "", uptime: "", started_at: "", queue_visible: 0, message_counts: {} },
@@ -12,7 +14,7 @@ export function OAM() {
   const messages = useAPI<{ messages: Message[] }>("/api/v1/messages?limit=200", { messages: [] }, 10000);
   const runtime = useAPI<RuntimeSnapshot>(
     "/api/v1/runtime",
-    { peers: [], vasps: [], mm3_relay: null, smpp_upstreams: [], adaptation: [] },
+    { peers: [], mm4_routes: [], vasps: [], mm3_relay: null, smpp_upstreams: [], adaptation: [] },
     10000,
   );
   const smpp = useAPI<{ upstreams: SMPPStatus[] }>("/api/v1/smpp/status", { upstreams: [] }, 10000);
@@ -20,6 +22,8 @@ export function OAM() {
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [queueFilter, setQueueFilter] = useState<"all" | "queued" | "delivering">("all");
   const [queueSelected, setQueueSelected] = useState<Message | null>(null);
+  const [busyID, setBusyID] = useState("");
+  const [operatorError, setOperatorError] = useState("");
 
   const queueVisible = useMemo(
     () => asArray(messages.data.messages).filter((item) => item.Status === 0 || item.Status === 1),
@@ -39,10 +43,32 @@ export function OAM() {
   const upstreams = asArray(smpp.data.upstreams);
   const adaptation = asArray(runtime.data.adaptation);
 
+  async function deleteQueuedMessage(id: string) {
+    if (!window.confirm(`Delete queued message ${id}? This removes the message record and stored payload.`)) {
+      return;
+    }
+    try {
+      setBusyID(id);
+      setOperatorError("");
+      await sendRequest(`/api/v1/messages/${id}`, "DELETE");
+      await Promise.all([system.reload(), messages.reload()]);
+      if (queueSelected?.ID === id) {
+        setQueueSelected(null);
+      }
+      toast.success("Queued message deleted", id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "delete failed";
+      setOperatorError(message);
+      toast.error("Delete failed", message);
+    } finally {
+      setBusyID("");
+    }
+  }
+
   return (
     <div className="stack">
-      {(system.error || messages.error || runtime.error || smpp.error) && (
-        <div className="notice error">{system.error || messages.error || runtime.error || smpp.error}</div>
+      {(operatorError || system.error || messages.error || runtime.error || smpp.error) && (
+        <div className="notice error">{operatorError || system.error || messages.error || runtime.error || smpp.error}</div>
       )}
 
       <div className="page-actions">
@@ -200,9 +226,14 @@ export function OAM() {
                         <td className="mono">{item.ID}</td>
                         <td className="mono">{item.OriginHost || originLabel(item.Origin)}</td>
                         <td>
-                          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setQueueSelected(item)}>
-                            Inspect
-                          </button>
+                          <div className="flex gap-8">
+                            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setQueueSelected(item)}>
+                              Inspect
+                            </button>
+                            <button className="btn btn-ghost btn-sm" type="button" disabled={busyID === item.ID} onClick={() => void deleteQueuedMessage(item.ID)}>
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -274,6 +305,11 @@ export function OAM() {
             </div>
             <div className="surface-note">
               Queue inspection here is intentionally lightweight. Use the Messages page for full event history, SMPP trail, and operator status overrides.
+            </div>
+            <div className="inline-actions">
+              <button className="btn btn-ghost btn-sm" type="button" disabled={busyID === queueSelected.ID} onClick={() => void deleteQueuedMessage(queueSelected.ID)}>
+                Delete Queued Message
+              </button>
             </div>
           </div>
         </Modal>

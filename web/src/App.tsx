@@ -7,6 +7,7 @@ import { Messages } from "./pages/Messages";
 import { MM3 } from "./pages/MM3";
 import { OAM } from "./pages/OAM";
 import { Peers } from "./pages/Peers";
+import { Routing } from "./pages/Routing";
 import { VASPs } from "./pages/VASPs";
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="messages" element={<Messages />} />
+        <Route path="routing" element={<Routing />} />
         <Route path="peers" element={<Peers />} />
         <Route path="mm3" element={<MM3 />} />
         <Route path="vasps" element={<VASPs />} />

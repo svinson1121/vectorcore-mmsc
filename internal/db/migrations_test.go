@@ -35,13 +35,15 @@ func TestRunMigrationsSQLite(t *testing.T) {
 	assertTableExists(t, repo.DB(), "smpp_submissions")
 	assertTableExists(t, repo.DB(), "adaptation_classes")
 	assertTableExists(t, repo.DB(), "message_events")
+	assertTableExists(t, repo.DB(), "mm4_routes")
+	assertTableExists(t, repo.DB(), "routing_rules")
 
 	var migrationCount int
 	if err := repo.DB().QueryRow(`select count(*) from schema_migrations`).Scan(&migrationCount); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if migrationCount != 10 {
-		t.Fatalf("unexpected migration count: got %d want 10", migrationCount)
+	if migrationCount != 12 {
+		t.Fatalf("unexpected migration count: got %d want 12", migrationCount)
 	}
 }
 

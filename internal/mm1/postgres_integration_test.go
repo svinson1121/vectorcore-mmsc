@@ -18,6 +18,7 @@ import (
 
 func TestMOHandlerStoresAndRespondsPostgres(t *testing.T) {
 	repo := testpg.OpenRepository(t)
+	addMM1TestRoutes(t, repo)
 
 	cfg := config.Default()
 	cfg.Store.Backend = "filesystem"

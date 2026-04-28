@@ -7,7 +7,7 @@ export function Dashboard() {
     { messages: [] },
     15000,
   );
-  const runtime = useAPI<RuntimeSnapshot>("/api/v1/runtime", { peers: [], mm3_relay: null, vasps: [], smpp_upstreams: [], adaptation: [] }, 15000);
+  const runtime = useAPI<RuntimeSnapshot>("/api/v1/runtime", { peers: [], mm4_routes: [], mm3_relay: null, vasps: [], smpp_upstreams: [], adaptation: [] }, 15000);
   const smpp = useAPI<{ upstreams: SMPPStatus[] }>("/api/v1/smpp/status", { upstreams: [] }, 15000);
   const system = useAPI<SystemStatus>(
     "/api/v1/system/status",

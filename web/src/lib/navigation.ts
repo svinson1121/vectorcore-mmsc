@@ -8,7 +8,8 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { path: "/dashboard", label: "Dashboard", short: "DB", subtitle: "Service health, throughput snapshot, and runtime counts." },
   { path: "/messages", label: "Messages", short: "MS", subtitle: "Message state inspection and operator status overrides." },
-  { path: "/peers", label: "Peers", short: "PR", subtitle: "MM4 peers and transport route definitions." },
+  { path: "/routing", label: "Routing", short: "RT", subtitle: "Recipient matching and egress policy." },
+  { path: "/peers", label: "Peers", short: "PR", subtitle: "MM4 and SMPP transport endpoints." },
   { path: "/mm3", label: "MM3", short: "M3", subtitle: "Email relay controls and MM3 sender normalization." },
   { path: "/vasps", label: "VASPs", short: "V7", subtitle: "MM7 credentials, protocol mode, callbacks, and sender controls." },
   { path: "/adaptation", label: "Adaptation", short: "AD", subtitle: "Media adaptation classes and delivery constraints." },

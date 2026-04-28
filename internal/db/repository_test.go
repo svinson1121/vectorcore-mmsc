@@ -132,6 +132,7 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	repo := newSQLiteRepoForTest(t)
 
 	if err := repo.UpsertMM4Peer(context.Background(), MM4Peer{
+		Name:       "Peer Example",
 		Domain:     "peer.example.net",
 		SMTPHost:   "smtp.peer.example.net",
 		SMTPPort:   2525,
@@ -150,6 +151,23 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	}
 	if len(peers) != 1 || len(peers[0].AllowedIPs) != 2 {
 		t.Fatalf("unexpected peers: %#v", peers)
+	}
+	if err := repo.UpsertMM4Route(context.Background(), MM4Route{
+		Name:             "Peer prefix",
+		MatchType:        "msisdn_prefix",
+		MatchValue:       "+1202555",
+		EgressPeerDomain: "peer.example.net",
+		Priority:         100,
+		Active:           true,
+	}); err != nil {
+		t.Fatalf("upsert route: %v", err)
+	}
+	routes, err := repo.ListMM4Routes(context.Background())
+	if err != nil {
+		t.Fatalf("list routes: %v", err)
+	}
+	if len(routes) != 1 || routes[0].EgressPeerDomain != "peer.example.net" {
+		t.Fatalf("unexpected routes: %#v", routes)
 	}
 
 	if err := repo.UpsertMM7VASP(context.Background(), MM7VASP{

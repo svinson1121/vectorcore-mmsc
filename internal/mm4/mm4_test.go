@@ -33,11 +33,15 @@ func TestEncodeDecodeEnvelopeRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	msg := &message.Message{
-		ID:            "mid-1",
-		TransactionID: "txn-1",
-		From:          "+12025550100",
-		To:            []string{"+12025550101"},
-		Subject:       "hello",
+		ID:             "mid-1",
+		TransactionID:  "txn-1",
+		From:           "+12025550100",
+		To:             []string{"+12025550101"},
+		Subject:        "hello",
+		MessageClass:   message.ClassAuto,
+		Priority:       message.PriorityLow,
+		DeliveryReport: true,
+		ReadReport:     true,
 		Parts: []message.Part{
 			{
 				ContentType:     "text/plain",
@@ -61,6 +65,9 @@ func TestEncodeDecodeEnvelopeRoundTrip(t *testing.T) {
 	}
 	if len(decoded.Parts) != 1 || string(decoded.Parts[0].Data) != "hello" {
 		t.Fatalf("unexpected decoded parts: %#v", decoded.Parts)
+	}
+	if decoded.MessageClass != message.ClassAuto || decoded.Priority != message.PriorityLow || !decoded.DeliveryReport || !decoded.ReadReport {
+		t.Fatalf("unexpected decoded flags: %#v", decoded)
 	}
 }
 
@@ -198,6 +205,134 @@ func TestOutboundSendUsesResolvedPeer(t *testing.T) {
 	}
 	if !strings.Contains(string(gotMsg), "X-Mms-Message-Id: mid-2") {
 		t.Fatalf("unexpected encoded message: %s", string(gotMsg))
+	}
+}
+
+func TestOutboundSendUsesConfiguredSMTPEnvelope(t *testing.T) {
+	t.Parallel()
+
+	repo := newMM4Repo(t)
+	if err := repo.UpsertMM4Peer(context.Background(), db.MM4Peer{
+		Domain:     "peer.example.net",
+		SMTPHost:   "smtp.peer.example.net",
+		SMTPPort:   2525,
+		TLSEnabled: false,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert peer: %v", err)
+	}
+	if err := repo.UpsertMM4Route(context.Background(), db.MM4Route{
+		Name:             "Peer prefix",
+		MatchType:        "msisdn_prefix",
+		MatchValue:       "+1202555",
+		EgressType:       "mm4",
+		EgressPeerDomain: "peer.example.net",
+		Priority:         200,
+		Active:           true,
+	}); err != nil {
+		t.Fatalf("upsert route: %v", err)
+	}
+
+	outbound := NewOutbound(NewPeerRouter(repo), "mmsc.example.net")
+	outbound.SetEnvelopeOptions("mm4@mmsc.example.net", "peer.example.net", true)
+
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	outbound.dialFn = func(context.Context, string, string) (net.Conn, error) {
+		return clientConn, nil
+	}
+
+	done := make(chan struct{})
+	go fakeMM4SMTPServer(t, serverConn, false, "", "", func(from string, to []string, msg []byte) {
+		if from != "mm4@mmsc.example.net" {
+			t.Errorf("unexpected smtp from: %s", from)
+		}
+		if len(to) != 1 || to[0] != "+12025550101@peer.example.net" {
+			t.Errorf("unexpected smtp recipients: %#v", to)
+		}
+		if !strings.Contains(string(msg), "X-Mms-Ack-Request: Yes") {
+			t.Errorf("missing ack request header:\n%s", string(msg))
+		}
+		close(done)
+	})
+
+	msg := &message.Message{
+		ID:            "mid-envelope",
+		TransactionID: "txn-envelope",
+		From:          "+12025550100",
+		To:            []string{"+12025550101/TYPE=PLMN"},
+		Parts: []message.Part{{
+			ContentType: "text/plain",
+			Data:        []byte("body"),
+		}},
+	}
+	if err := outbound.Send(context.Background(), msg); err != nil {
+		t.Fatalf("send outbound: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for outbound smtp send")
+	}
+}
+
+func TestOutboundSendUsesMSISDNRoute(t *testing.T) {
+	t.Parallel()
+
+	repo := newMM4Repo(t)
+	if err := repo.UpsertMM4Peer(context.Background(), db.MM4Peer{
+		Name:       "Carrier A",
+		Domain:     "carrier-a.example.net",
+		SMTPHost:   "smtp.carrier-a.example.net",
+		SMTPPort:   2525,
+		TLSEnabled: false,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert peer: %v", err)
+	}
+	if err := repo.UpsertMM4Route(context.Background(), db.MM4Route{
+		Name:             "Carrier A prefix",
+		MatchType:        "msisdn_prefix",
+		MatchValue:       "+1202555",
+		EgressType:       "mm4",
+		EgressPeerDomain: "carrier-a.example.net",
+		Priority:         200,
+		Active:           true,
+	}); err != nil {
+		t.Fatalf("upsert route: %v", err)
+	}
+
+	outbound := NewOutbound(NewPeerRouter(repo), "mmsc.example.net")
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	outbound.dialFn = func(context.Context, string, string) (net.Conn, error) {
+		return clientConn, nil
+	}
+	done := make(chan struct{})
+	go fakeMM4SMTPServer(t, serverConn, false, "", "", func(_ string, to []string, _ []byte) {
+		if len(to) != 1 || to[0] != "+12025550100/TYPE=PLMN" {
+			t.Errorf("unexpected recipient: %#v", to)
+		}
+		close(done)
+	})
+
+	msg := &message.Message{
+		ID:            "mid-msisdn",
+		TransactionID: "txn-msisdn",
+		From:          "+12025550199",
+		To:            []string{"+12025550100/TYPE=PLMN"},
+		Parts: []message.Part{{
+			ContentType: "text/plain",
+			Data:        []byte("body"),
+		}},
+	}
+	if err := outbound.Send(context.Background(), msg); err != nil {
+		t.Fatalf("send outbound: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for outbound smtp send")
 	}
 }
 
@@ -535,6 +670,72 @@ func TestInboundHandleStoresAndDispatchesLocalNotification(t *testing.T) {
 	}
 	if push.calls != 1 || push.msisdn != "+12025550101" {
 		t.Fatalf("unexpected push dispatch: %#v", push)
+	}
+}
+
+func TestInboundHandleSendsForwardResponseWhenAckRequested(t *testing.T) {
+	t.Parallel()
+
+	repo := newMM4Repo(t)
+	contentStore, err := store.New(context.Background(), config.StoreConfig{
+		Backend: "filesystem",
+		Filesystem: config.FilesystemConfig{
+			Root: t.TempDir(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	defer contentStore.Close()
+
+	responder := &fakeForwardResponder{}
+	inbound := NewInboundServer(&config.Config{Adapt: config.AdaptConfig{Enabled: false}}, repo, contentStore, routing.NewEngine(repo), nil, "mmsc.example.net")
+	inbound.SetForwardResponder(responder)
+
+	msg := &message.Message{
+		ID:            "mid-ack",
+		TransactionID: "txn-ack",
+		From:          "+12025550100",
+		To:            []string{"+12025550101"},
+		Parts: []message.Part{{
+			ContentType: "text/plain",
+			Data:        []byte("hello"),
+		}},
+	}
+	envelope, err := EncodeEnvelopeWithOptions(msg, "peer.example.net", EnvelopeOptions{AckRequest: true})
+	if err != nil {
+		t.Fatalf("encode envelope: %v", err)
+	}
+
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	done := make(chan error, 1)
+	go func() {
+		done <- inbound.Handle(serverConn)
+	}()
+
+	reader := bufio.NewReader(clientConn)
+	_ = mustReadSMTPLine(t, reader)
+	mustWriteSMTP(t, clientConn, "EHLO peer.example.net\r\n")
+	_ = mustReadSMTPLine(t, reader)
+	_ = mustReadSMTPLine(t, reader)
+	mustWriteSMTP(t, clientConn, "MAIL FROM:<+12025550100>\r\n")
+	_ = mustReadSMTPLine(t, reader)
+	mustWriteSMTP(t, clientConn, "RCPT TO:<+12025550101>\r\n")
+	_ = mustReadSMTPLine(t, reader)
+	mustWriteSMTP(t, clientConn, "DATA\r\n")
+	_ = mustReadSMTPLine(t, reader)
+	mustWriteSMTP(t, clientConn, string(envelope)+"\r\n.\r\n")
+	if line := mustReadSMTPLine(t, reader); line != "250 OK" {
+		t.Fatalf("unexpected data completion: %q", line)
+	}
+	mustWriteSMTP(t, clientConn, "QUIT\r\n")
+	_ = mustReadSMTPLine(t, reader)
+	if err := <-done; err != nil {
+		t.Fatalf("handle inbound: %v", err)
+	}
+	if responder.calls != 1 || responder.msg == nil || responder.msg.ID != "mid-ack" || responder.statusCode != "Ok" {
+		t.Fatalf("unexpected responder state: %#v", responder)
 	}
 }
 
@@ -969,6 +1170,20 @@ func (f *fakePushSender) SubmitWAPPush(_ context.Context, sourceAddr string, msi
 	return nil
 }
 
+type fakeForwardResponder struct {
+	msg        *message.Message
+	statusCode string
+	calls      int
+}
+
+func (f *fakeForwardResponder) SendForwardResponse(_ context.Context, msg *message.Message, statusCode string) error {
+	cloned := msg.Clone()
+	f.msg = &cloned
+	f.statusCode = statusCode
+	f.calls++
+	return nil
+}
+
 type remoteAddrConn struct {
 	net.Conn
 	addr net.Addr
@@ -1076,7 +1291,6 @@ func fakeMM4SMTPServer(t *testing.T, conn net.Conn, requireTLS bool, wantUser st
 	}
 }
 
-
 func mustSelfSignedCert(t *testing.T) tls.Certificate {
 	t.Helper()
 
@@ -1124,7 +1338,22 @@ func newMM4Repo(t *testing.T) db.Repository {
 	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
+	addMM4TestRoute(t, repo, db.MM4Route{
+		Name:       "Local test prefix",
+		MatchType:  "msisdn_prefix",
+		MatchValue: "+1202555",
+		EgressType: "local",
+		Priority:   100,
+		Active:     true,
+	})
 	return repo
+}
+
+func addMM4TestRoute(t *testing.T, repo db.Repository, route db.MM4Route) {
+	t.Helper()
+	if err := repo.UpsertMM4Route(context.Background(), route); err != nil {
+		t.Fatalf("upsert route %s: %v", route.Name, err)
+	}
 }
 
 func TestDispatchLocalNotificationUsesConfiguredRetrieveURL(t *testing.T) {

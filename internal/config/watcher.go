@@ -114,6 +114,7 @@ func (w *Watcher) reload(ctx context.Context, reason string) error {
 		"runtime snapshot refreshed",
 		zap.String("reason", reason),
 		zap.Int("mm4_peers", len(snapshot.Peers)),
+		zap.Int("mm4_routes", len(snapshot.MM4Routes)),
 		zap.Bool("mm3_enabled", snapshot.MM3Relay != nil && snapshot.MM3Relay.Enabled),
 		zap.Int("mm7_vasps", len(snapshot.VASPs)),
 		zap.Int("smpp_upstreams", len(snapshot.SMPPUpstreams)),
@@ -123,6 +124,7 @@ func (w *Watcher) reload(ctx context.Context, reason string) error {
 
 func snapshotsEqual(a RuntimeSnapshot, b RuntimeSnapshot) bool {
 	return reflect.DeepEqual(a.Peers, b.Peers) &&
+		reflect.DeepEqual(a.MM4Routes, b.MM4Routes) &&
 		reflect.DeepEqual(a.MM3Relay, b.MM3Relay) &&
 		reflect.DeepEqual(a.VASPs, b.VASPs) &&
 		reflect.DeepEqual(a.SMPPUpstreams, b.SMPPUpstreams) &&

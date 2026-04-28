@@ -34,7 +34,15 @@ type EnvelopeMeta struct {
 	ReadStatus        string
 }
 
+type EnvelopeOptions struct {
+	AckRequest bool
+}
+
 func EncodeEnvelope(msg *message.Message, originHost string) ([]byte, error) {
+	return EncodeEnvelopeWithOptions(msg, originHost, EnvelopeOptions{})
+}
+
+func EncodeEnvelopeWithOptions(msg *message.Message, originHost string, opts EnvelopeOptions) ([]byte, error) {
 	if msg == nil {
 		return nil, fmt.Errorf("mm4: nil message")
 	}
@@ -83,6 +91,14 @@ func EncodeEnvelope(msg *message.Message, originHost string) ([]byte, error) {
 	if msg.DeliveryReport {
 		header.Set("X-Mms-Delivery-Report", "Yes")
 	}
+	if msg.ReadReport {
+		header.Set("X-Mms-Read-Reply", "Yes")
+	}
+	if opts.AckRequest {
+		header.Set("X-Mms-Ack-Request", "Yes")
+	}
+	header.Set("X-Mms-Message-Class", mm4MessageClassHeader(msg.MessageClass))
+	header.Set("X-Mms-Priority", mm4PriorityHeader(msg.Priority))
 
 	var out bytes.Buffer
 	for key, values := range header {
@@ -162,15 +178,19 @@ func DecodeEnvelopeWithMeta(data []byte) (*message.Message, *EnvelopeMeta, error
 		ReadStatus:        msg.Header.Get("X-Mms-Read-Status"),
 	}
 	out := &message.Message{
-		ID:            msg.Header.Get("X-Mms-Message-ID"),
-		TransactionID: msg.Header.Get("X-Mms-Transaction-ID"),
-		From:          stripType(msg.Header.Get("X-Mms-Sender-Address")),
-		To:            splitRecipients(msg.Header.Get("X-Mms-To")),
-		Subject:       msg.Header.Get("Subject"),
-		ContentType:   mediaType,
-		MMSVersion:    "1.3",
-		Origin:        message.InterfaceMM4,
-		OriginHost:    meta.OriginatorSystem,
+		ID:             msg.Header.Get("X-Mms-Message-ID"),
+		TransactionID:  msg.Header.Get("X-Mms-Transaction-ID"),
+		From:           stripType(msg.Header.Get("X-Mms-Sender-Address")),
+		To:             splitRecipients(msg.Header.Get("X-Mms-To")),
+		Subject:        msg.Header.Get("Subject"),
+		ContentType:    mediaType,
+		MMSVersion:     "1.3",
+		MessageClass:   parseMM4MessageClassHeader(msg.Header.Get("X-Mms-Message-Class")),
+		Priority:       parseMM4PriorityHeader(msg.Header.Get("X-Mms-Priority")),
+		DeliveryReport: strings.EqualFold(msg.Header.Get("X-Mms-Delivery-Report"), "Yes"),
+		ReadReport:     strings.EqualFold(msg.Header.Get("X-Mms-Read-Reply"), "Yes"),
+		Origin:         message.InterfaceMM4,
+		OriginHost:     meta.OriginatorSystem,
 	}
 	if !strings.HasPrefix(strings.ToLower(mediaType), "multipart/") {
 		return out, meta, nil
@@ -252,6 +272,54 @@ func joinedRecipientsWithPLMN(recipients []string) string {
 		values = append(values, withPLMN(recipient))
 	}
 	return strings.Join(values, ",")
+}
+
+func mm4MessageClassHeader(class message.MessageClass) string {
+	switch class {
+	case message.ClassAdvertisement:
+		return "Advertisement"
+	case message.ClassInformational:
+		return "Informational"
+	case message.ClassAuto:
+		return "Auto"
+	default:
+		return "Personal"
+	}
+}
+
+func parseMM4MessageClassHeader(value string) message.MessageClass {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "advertisement":
+		return message.ClassAdvertisement
+	case "informational":
+		return message.ClassInformational
+	case "auto":
+		return message.ClassAuto
+	default:
+		return message.ClassPersonal
+	}
+}
+
+func mm4PriorityHeader(priority message.Priority) string {
+	switch priority {
+	case message.PriorityLow:
+		return "Low"
+	case message.PriorityHigh:
+		return "High"
+	default:
+		return "Normal"
+	}
+}
+
+func parseMM4PriorityHeader(value string) message.Priority {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "low":
+		return message.PriorityLow
+	case "high":
+		return message.PriorityHigh
+	default:
+		return message.PriorityNormal
+	}
 }
 
 func EncodeResponseEnvelope(messageType, transactionID, messageID, statusCode, sender, to string) ([]byte, error) {

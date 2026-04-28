@@ -599,6 +599,7 @@ func newMM7TestEnv(t *testing.T) (*config.Config, db.Repository, store.Store) {
 	if err := db.RunMigrations(context.Background(), repo, os.DirFS("../..")); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
+	addMM7TestRoutes(t, repo)
 
 	contentStore, err := store.New(context.Background(), cfg.Store)
 	if err != nil {
@@ -606,4 +607,40 @@ func newMM7TestEnv(t *testing.T) (*config.Config, db.Repository, store.Store) {
 	}
 	t.Cleanup(func() { _ = contentStore.Close() })
 	return cfg, repo, contentStore
+}
+
+func addMM7TestRoutes(t *testing.T, repo db.Repository) {
+	t.Helper()
+	routes := []db.MM4Route{
+		{
+			Name:       "Local test prefix",
+			MatchType:  "msisdn_prefix",
+			MatchValue: "+1202555",
+			EgressType: "local",
+			Priority:   100,
+			Active:     true,
+		},
+		{
+			Name:         "MM4 test domain",
+			MatchType:    "recipient_domain",
+			MatchValue:   "peer.example.net",
+			EgressType:   "mm4",
+			EgressTarget: "peer.example.net",
+			Priority:     100,
+			Active:       true,
+		},
+		{
+			Name:       "MM3 test domain",
+			MatchType:  "recipient_domain",
+			MatchValue: "example.org",
+			EgressType: "mm3",
+			Priority:   100,
+			Active:     true,
+		},
+	}
+	for _, route := range routes {
+		if err := repo.UpsertMM4Route(context.Background(), route); err != nil {
+			t.Fatalf("upsert route %s: %v", route.Name, err)
+		}
+	}
 }

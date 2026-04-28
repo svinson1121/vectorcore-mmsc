@@ -35,6 +35,15 @@ func TestEngineResolve(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert peer: %v", err)
 	}
+	for _, route := range []db.MM4Route{
+		{Name: "Local prefix", MatchType: "msisdn_prefix", MatchValue: "+1202555", EgressType: "local", Priority: 100, Active: true},
+		{Name: "Peer domain", MatchType: "recipient_domain", MatchValue: "peer.example.net", EgressType: "mm4", EgressTarget: "peer.example.net", Priority: 100, Active: true},
+		{Name: "Email domain", MatchType: "recipient_domain", MatchValue: "example.org", EgressType: "mm3", Priority: 100, Active: true},
+	} {
+		if err := repo.UpsertMM4Route(context.Background(), route); err != nil {
+			t.Fatalf("upsert route %s: %v", route.Name, err)
+		}
+	}
 
 	engine := NewEngine(repo)
 
@@ -80,6 +89,49 @@ func TestEngineResolve(t *testing.T) {
 
 	if _, err := engine.ResolveRecipients(context.Background(), []string{"+12025550100", "user@example.org"}); err == nil {
 		t.Fatal("expected mixed recipient destination error")
+	}
+
+	unmatched, err := engine.ResolveRecipients(context.Background(), []string{"+19995550100"})
+	if err != nil {
+		t.Fatalf("resolve unmatched recipient: %v", err)
+	}
+	if unmatched.Destination != DestinationLocal {
+		t.Fatalf("expected unmatched recipient to fall back local, got %#v", unmatched)
+	}
+}
+
+func TestEngineResolveMSISDNRoute(t *testing.T) {
+	t.Parallel()
+
+	repo := newRoutingRepo(t)
+	if err := repo.UpsertMM4Peer(context.Background(), db.MM4Peer{
+		Name:       "Carrier A",
+		Domain:     "carrier-a.example.net",
+		SMTPHost:   "smtp.carrier-a.example.net",
+		SMTPPort:   25,
+		TLSEnabled: true,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert peer: %v", err)
+	}
+	if err := repo.UpsertMM4Route(context.Background(), db.MM4Route{
+		Name:         "Carrier A prefix",
+		MatchType:    "msisdn_prefix",
+		MatchValue:   "+1202555",
+		EgressType:   "mm4",
+		EgressTarget: "carrier-a.example.net",
+		Priority:     100,
+		Active:       true,
+	}); err != nil {
+		t.Fatalf("upsert route: %v", err)
+	}
+
+	result, err := NewEngine(repo).Resolve(context.Background(), "+12025550100/TYPE=PLMN")
+	if err != nil {
+		t.Fatalf("resolve routed msisdn: %v", err)
+	}
+	if result.Destination != DestinationMM4 || result.Peer == nil || result.Peer.Domain != "carrier-a.example.net" {
+		t.Fatalf("unexpected routed msisdn result: %#v", result)
 	}
 }
 

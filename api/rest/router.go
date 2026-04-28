@@ -65,6 +65,24 @@ func NewRouter(cfg *config.Config, repo db.Repository, runtimeStore *config.Runt
 	}, r.postPeer)
 	huma.Put(api, "/api/v1/peers/{domain}", r.putPeer)
 	huma.Delete(api, "/api/v1/peers/{domain}", r.deletePeer)
+	huma.Get(api, "/api/v1/mm4/routes", r.listMM4Routes)
+	huma.Register(api, huma.Operation{
+		OperationID:   "post-mm4-route",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/mm4/routes",
+		DefaultStatus: http.StatusCreated,
+	}, r.postMM4Route)
+	huma.Put(api, "/api/v1/mm4/routes/{id}", r.putMM4Route)
+	huma.Delete(api, "/api/v1/mm4/routes/{id}", r.deleteMM4Route)
+	huma.Get(api, "/api/v1/routes", r.listMM4Routes)
+	huma.Register(api, huma.Operation{
+		OperationID:   "post-route",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/routes",
+		DefaultStatus: http.StatusCreated,
+	}, r.postMM4Route)
+	huma.Put(api, "/api/v1/routes/{id}", r.putMM4Route)
+	huma.Delete(api, "/api/v1/routes/{id}", r.deleteMM4Route)
 	huma.Get(api, "/api/v1/mm3/relay", r.getMM3Relay)
 	huma.Put(api, "/api/v1/mm3/relay", r.putMM3Relay)
 	huma.Get(api, "/api/v1/vasps", r.listVASPs)
@@ -183,6 +201,29 @@ type peerDeleteInput struct {
 
 type peerOutput struct {
 	Body db.MM4Peer
+}
+
+type mm4RoutesOutput struct {
+	Body struct {
+		Routes []db.MM4Route `json:"routes"`
+	}
+}
+
+type mm4RouteInput struct {
+	Body db.MM4Route
+}
+
+type mm4RoutePathInput struct {
+	ID   int64 `path:"id"`
+	Body db.MM4Route
+}
+
+type mm4RouteDeleteInput struct {
+	ID int64 `path:"id"`
+}
+
+type mm4RouteOutput struct {
+	Body db.MM4Route
 }
 
 type mm3RelayInput struct {
@@ -341,6 +382,7 @@ func (r *Router) getReadyz(ctx context.Context, _ *struct{}) (*readyzOutput, err
 		Body: map[string]any{
 			"status":         "ready",
 			"mm4_peers":      len(snapshot.Peers),
+			"mm4_routes":     len(snapshot.MM4Routes),
 			"mm3_enabled":    snapshot.MM3Relay != nil && snapshot.MM3Relay.Enabled,
 			"mm7_vasps":      len(snapshot.VASPs),
 			"smpp_upstreams": len(snapshot.SMPPUpstreams),
@@ -608,6 +650,38 @@ func (r *Router) deletePeer(ctx context.Context, input *peerDeleteInput) (*struc
 	return &struct{}{}, nil
 }
 
+func (r *Router) listMM4Routes(ctx context.Context, _ *struct{}) (*mm4RoutesOutput, error) {
+	items, err := r.repo.ListMM4Routes(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to list mm4 routes", err)
+	}
+	resp := &mm4RoutesOutput{}
+	resp.Body.Routes = items
+	return resp, nil
+}
+
+func (r *Router) postMM4Route(ctx context.Context, input *mm4RouteInput) (*mm4RouteOutput, error) {
+	if err := r.repo.UpsertMM4Route(ctx, input.Body); err != nil {
+		return nil, huma.Error400BadRequest(err.Error(), err)
+	}
+	return &mm4RouteOutput{Body: input.Body}, nil
+}
+
+func (r *Router) putMM4Route(ctx context.Context, input *mm4RoutePathInput) (*mm4RouteOutput, error) {
+	input.Body.ID = input.ID
+	if err := r.repo.UpsertMM4Route(ctx, input.Body); err != nil {
+		return nil, huma.Error400BadRequest(err.Error(), err)
+	}
+	return &mm4RouteOutput{Body: input.Body}, nil
+}
+
+func (r *Router) deleteMM4Route(ctx context.Context, input *mm4RouteDeleteInput) (*struct{}, error) {
+	if err := r.repo.DeleteMM4Route(ctx, input.ID); err != nil {
+		return nil, huma.Error400BadRequest(err.Error(), err)
+	}
+	return &struct{}{}, nil
+}
+
 func (r *Router) getMM3Relay(ctx context.Context, _ *struct{}) (*mm3RelayOutput, error) {
 	relay, err := r.repo.GetMM3Relay(ctx)
 	if err != nil {
@@ -695,6 +769,7 @@ func (r *Router) getRuntime(context.Context, *struct{}) (*runtimeOutput, error) 
 	return &runtimeOutput{
 		Body: map[string]any{
 			"peers":          snapshot.Peers,
+			"mm4_routes":     snapshot.MM4Routes,
 			"mm3_relay":      snapshot.MM3Relay,
 			"vasps":          snapshot.VASPs,
 			"smpp_upstreams": snapshot.SMPPUpstreams,

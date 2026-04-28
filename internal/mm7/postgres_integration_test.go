@@ -18,6 +18,7 @@ import (
 
 func TestSubmitReqStoresAndDispatchesLocalMTPostgres(t *testing.T) {
 	repo := testpg.OpenRepository(t)
+	addMM7TestRoutes(t, repo)
 
 	cfg := config.Default()
 	cfg.Store.Backend = "filesystem"

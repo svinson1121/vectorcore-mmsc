@@ -47,11 +47,14 @@ type MM3Config struct {
 }
 
 type MM4Config struct {
-	InboundListen       string `yaml:"inbound_listen"`
-	Hostname            string `yaml:"hostname"`
-	MaxMessageSizeBytes int64  `yaml:"max_message_size_bytes"`
-	TLSCertFile         string `yaml:"tls_cert_file"`
-	TLSKeyFile          string `yaml:"tls_key_file"`
+	InboundListen                 string `yaml:"inbound_listen"`
+	Hostname                      string `yaml:"hostname"`
+	MaxMessageSizeBytes           int64  `yaml:"max_message_size_bytes"`
+	TLSCertFile                   string `yaml:"tls_cert_file"`
+	TLSKeyFile                    string `yaml:"tls_key_file"`
+	SMTPEnvelopeFrom              string `yaml:"smtp_envelope_from"`
+	SMTPEnvelopeRecipientDomain   string `yaml:"smtp_envelope_recipient_domain"`
+	RequestForwardAcknowledgement bool   `yaml:"request_forward_ack"`
 }
 
 type MM7Config struct {
@@ -98,18 +101,18 @@ type AdaptConfig struct {
 }
 
 type LimitsConfig struct {
-	MaxMessageSizeBytes    int64         `yaml:"max_message_size_bytes"`
-	DefaultMessageExpiry   time.Duration `yaml:"default_message_expiry"`
-	MaxMessageRetention    time.Duration `yaml:"max_message_retention"`
+	MaxMessageSizeBytes  int64         `yaml:"max_message_size_bytes"`
+	DefaultMessageExpiry time.Duration `yaml:"default_message_expiry"`
+	MaxMessageRetention  time.Duration `yaml:"max_message_retention"`
 }
 
 type BillingConfig struct {
-	Enabled     bool          `yaml:"enabled"`
-	ExportDir   string        `yaml:"export_dir"`
-	Interval    time.Duration `yaml:"interval"`
-	Tenant      string        `yaml:"tenant"`
-	ReqType     string        `yaml:"req_type"`
-	NodeID      string        `yaml:"node_id"`
+	Enabled   bool          `yaml:"enabled"`
+	ExportDir string        `yaml:"export_dir"`
+	Interval  time.Duration `yaml:"interval"`
+	Tenant    string        `yaml:"tenant"`
+	ReqType   string        `yaml:"req_type"`
+	NodeID    string        `yaml:"node_id"`
 }
 
 type LogConfig struct {
@@ -188,11 +191,11 @@ func Default() *Config {
 			MaxMessageRetention:  30 * 24 * time.Hour,
 		},
 		Billing: BillingConfig{
-			Enabled:  false,
+			Enabled:   false,
 			ExportDir: "./data/billing",
 			Interval:  time.Hour,
-			Tenant:   "cgrates.org",
-			ReqType:  "*postpaid",
+			Tenant:    "cgrates.org",
+			ReqType:   "*postpaid",
 		},
 		Log: LogConfig{
 			Level:  "info",

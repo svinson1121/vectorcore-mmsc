@@ -379,10 +379,14 @@ func (r *sqlRepository) UpsertMM4Peer(ctx context.Context, peer MM4Peer) error {
 	if peer.Domain == "" || peer.SMTPHost == "" {
 		return errors.New("mm4 peer domain and smtp_host are required")
 	}
+	if peer.Name == "" {
+		peer.Name = peer.Domain
+	}
 	if peer.SMTPPort == 0 {
 		peer.SMTPPort = 25
 	}
 	_, err := r.db.ExecContext(ctx, r.upsertMM4PeerSQL(),
+		peer.Name,
 		peer.Domain,
 		peer.SMTPHost,
 		peer.SMTPPort,
@@ -418,6 +422,79 @@ func (r *sqlRepository) ListMM4Peers(ctx context.Context) ([]MM4Peer, error) {
 		return nil, fmt.Errorf("iterate mm4 peers: %w", err)
 	}
 	return out, nil
+}
+
+func (r *sqlRepository) UpsertMM4Route(ctx context.Context, route MM4Route) error {
+	if route.Name == "" || route.MatchType == "" || route.MatchValue == "" {
+		return errors.New("routing rule name, match_type, and match_value are required")
+	}
+	switch route.MatchType {
+	case "msisdn_exact", "msisdn_prefix", "recipient_domain":
+	default:
+		return fmt.Errorf("unsupported routing rule match_type: %s", route.MatchType)
+	}
+	if route.EgressType == "" {
+		route.EgressType = "mm4"
+	}
+	if route.EgressTarget == "" && route.EgressPeerDomain != "" {
+		route.EgressTarget = route.EgressPeerDomain
+	}
+	switch route.EgressType {
+	case "local", "reject", "mm3":
+		route.EgressTarget = ""
+	case "mm4":
+		if route.EgressTarget == "" {
+			return errors.New("routing rule egress_target is required for mm4 egress")
+		}
+	default:
+		return fmt.Errorf("unsupported routing rule egress_type: %s", route.EgressType)
+	}
+	var err error
+	if route.ID > 0 {
+		_, err = r.db.ExecContext(ctx, r.updateMM4RouteSQL(),
+			route.Name, route.MatchType, route.MatchValue, route.EgressType, nullableString(route.EgressTarget), route.Priority, route.Active, route.ID)
+	} else {
+		_, err = r.db.ExecContext(ctx, r.insertMM4RouteSQL(),
+			route.Name, route.MatchType, route.MatchValue, route.EgressType, nullableString(route.EgressTarget), route.Priority, route.Active)
+	}
+	if err != nil {
+		return fmt.Errorf("upsert routing rule: %w", err)
+	}
+	return nil
+}
+
+func (r *sqlRepository) ListMM4Routes(ctx context.Context) ([]MM4Route, error) {
+	rows, err := r.db.QueryContext(ctx, r.listMM4RoutesSQL())
+	if err != nil {
+		return nil, fmt.Errorf("list routing rules: %w", err)
+	}
+	defer rows.Close()
+
+	var out []MM4Route
+	for rows.Next() {
+		var route MM4Route
+		if err := rows.Scan(&route.ID, &route.Name, &route.MatchType, &route.MatchValue, &route.EgressType, &route.EgressTarget, &route.Priority, &route.Active); err != nil {
+			return nil, err
+		}
+		if route.EgressType == "mm4" {
+			route.EgressPeerDomain = route.EgressTarget
+		}
+		out = append(out, route)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate routing rules: %w", err)
+	}
+	return out, nil
+}
+
+func (r *sqlRepository) DeleteMM4Route(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return errors.New("mm4 route id is required")
+	}
+	if _, err := r.db.ExecContext(ctx, `delete from routing_rules where id = `+r.placeholder(1), id); err != nil {
+		return fmt.Errorf("delete routing rule: %w", err)
+	}
+	return nil
 }
 
 func (r *sqlRepository) DeleteMM4Peer(ctx context.Context, domain string) error {
@@ -970,9 +1047,10 @@ func (r *sqlRepository) upsertSubscriberSQL() string {
 
 func (r *sqlRepository) upsertMM4PeerSQL() string {
 	if r.driver == "postgres" {
-		return `insert into mm4_peers (domain, smtp_host, smtp_port, smtp_auth, smtp_user, smtp_pass, tls_enabled, allowed_ips, active)
-			values ($1, $2, $3, $4, $5, $6, $7, cast(string_to_array(nullif($8, ''), ',') as inet[]), $9)
+		return `insert into mm4_peers (name, domain, smtp_host, smtp_port, smtp_auth, smtp_user, smtp_pass, tls_enabled, allowed_ips, active)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, cast(string_to_array(nullif($9, ''), ',') as inet[]), $10)
 			on conflict (domain) do update set
+				name = excluded.name,
 				smtp_host = excluded.smtp_host,
 				smtp_port = excluded.smtp_port,
 				smtp_auth = excluded.smtp_auth,
@@ -983,9 +1061,10 @@ func (r *sqlRepository) upsertMM4PeerSQL() string {
 				active = excluded.active,
 				updated_at = now()`
 	}
-	return `insert into mm4_peers (domain, smtp_host, smtp_port, smtp_auth, smtp_user, smtp_pass, tls_enabled, allowed_ips, active)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	return `insert into mm4_peers (name, domain, smtp_host, smtp_port, smtp_auth, smtp_user, smtp_pass, tls_enabled, allowed_ips, active)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		on conflict(domain) do update set
+			name = excluded.name,
 			smtp_host = excluded.smtp_host,
 			smtp_port = excluded.smtp_port,
 			smtp_auth = excluded.smtp_auth,
@@ -999,9 +1078,29 @@ func (r *sqlRepository) upsertMM4PeerSQL() string {
 
 func (r *sqlRepository) listMM4PeersSQL() string {
 	if r.driver == "postgres" {
-		return `select domain, smtp_host, smtp_port, smtp_auth, coalesce(smtp_user, ''), coalesce(smtp_pass, ''), tls_enabled, coalesce(array_to_string(allowed_ips::text[], ','), ''), active from mm4_peers order by domain`
+		return `select coalesce(name, domain), domain, smtp_host, smtp_port, smtp_auth, coalesce(smtp_user, ''), coalesce(smtp_pass, ''), tls_enabled, coalesce(array_to_string(allowed_ips::text[], ','), ''), active from mm4_peers order by domain`
 	}
-	return `select domain, smtp_host, smtp_port, smtp_auth, coalesce(smtp_user, ''), coalesce(smtp_pass, ''), tls_enabled, coalesce(allowed_ips, ''), active from mm4_peers order by domain`
+	return `select coalesce(nullif(name, ''), domain), domain, smtp_host, smtp_port, smtp_auth, coalesce(smtp_user, ''), coalesce(smtp_pass, ''), tls_enabled, coalesce(allowed_ips, ''), active from mm4_peers order by domain`
+}
+
+func (r *sqlRepository) insertMM4RouteSQL() string {
+	if r.driver == "postgres" {
+		return `insert into routing_rules (name, match_type, match_value, egress_type, egress_target, priority, active)
+			values ($1, $2, $3, $4, $5, $6, $7)`
+	}
+	return `insert into routing_rules (name, match_type, match_value, egress_type, egress_target, priority, active)
+		values (?, ?, ?, ?, ?, ?, ?)`
+}
+
+func (r *sqlRepository) updateMM4RouteSQL() string {
+	if r.driver == "postgres" {
+		return `update routing_rules set name = $1, match_type = $2, match_value = $3, egress_type = $4, egress_target = $5, priority = $6, active = $7, updated_at = now() where id = $8`
+	}
+	return `update routing_rules set name = ?, match_type = ?, match_value = ?, egress_type = ?, egress_target = ?, priority = ?, active = ?, updated_at = current_timestamp where id = ?`
+}
+
+func (r *sqlRepository) listMM4RoutesSQL() string {
+	return `select id, name, match_type, match_value, egress_type, coalesce(egress_target, ''), priority, active from routing_rules order by priority desc, length(match_value) desc, id`
 }
 
 func (r *sqlRepository) upsertMM7VASPSQL() string {
@@ -1323,6 +1422,7 @@ func (r *sqlRepository) scanMM4Peer(scanner rowScanner) (*MM4Peer, error) {
 	var peer MM4Peer
 	var allowedIPs string
 	if err := scanner.Scan(
+		&peer.Name,
 		&peer.Domain,
 		&peer.SMTPHost,
 		&peer.SMTPPort,

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vectorcore/vectorcore-mmsc/internal/db"
+	"github.com/vectorcore/vectorcore-mmsc/internal/routing"
 )
 
 type MXResolver func(context.Context, string) ([]*net.MX, error)
@@ -46,6 +47,13 @@ func (r *PeerRouter) ResolvePeer(ctx context.Context, address string) (db.MM4Pee
 	peers, err := r.repo.ListMM4Peers(ctx)
 	if err != nil {
 		return db.MM4Peer{}, false, err
+	}
+	routes, err := r.repo.ListMM4Routes(ctx)
+	if err != nil {
+		return db.MM4Peer{}, false, err
+	}
+	if peer := routing.MatchRoutePeer(address, routes, peers); peer != nil {
+		return *peer, true, nil
 	}
 	domain := domainOf(address)
 	for _, peer := range peers {

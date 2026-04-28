@@ -6,7 +6,7 @@ import { asArray, RuntimeSnapshot, useAPI } from "../lib/api";
 export function ConfigPage() {
   const runtime = useAPI<RuntimeSnapshot>(
     "/api/v1/runtime",
-    { peers: [], vasps: [], mm3_relay: null, smpp_upstreams: [], adaptation: [] },
+    { peers: [], mm4_routes: [], vasps: [], mm3_relay: null, smpp_upstreams: [], adaptation: [] },
     15000,
   );
   const [snapshotOpen, setSnapshotOpen] = useState(false);

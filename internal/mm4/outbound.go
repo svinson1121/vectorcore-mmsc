@@ -18,12 +18,15 @@ type DialFunc func(ctx context.Context, network, address string) (net.Conn, erro
 type SleepFunc func(time.Duration)
 
 type Outbound struct {
-	router      *PeerRouter
-	hostname    string
-	dialFn      DialFunc
-	sleepFn     SleepFunc
-	tlsConfigFn func(string) *tls.Config
-	maxRetries  int
+	router                  *PeerRouter
+	hostname                string
+	dialFn                  DialFunc
+	sleepFn                 SleepFunc
+	tlsConfigFn             func(string) *tls.Config
+	maxRetries              int
+	envelopeFrom            string
+	envelopeRecipientDomain string
+	requestForwardAck       bool
 }
 
 func NewOutbound(router *PeerRouter, hostname string) *Outbound {
@@ -42,12 +45,18 @@ func NewOutbound(router *PeerRouter, hostname string) *Outbound {
 	}
 }
 
+func (o *Outbound) SetEnvelopeOptions(from string, recipientDomain string, requestForwardAck bool) {
+	o.envelopeFrom = strings.TrimSpace(from)
+	o.envelopeRecipientDomain = strings.TrimSpace(recipientDomain)
+	o.requestForwardAck = requestForwardAck
+}
+
 func (o *Outbound) Send(ctx context.Context, msg *message.Message) error {
 	if msg == nil || len(msg.To) == 0 {
 		return fmt.Errorf("mm4: missing recipients")
 	}
 
-	envelope, err := EncodeEnvelope(msg, o.hostname)
+	envelope, err := EncodeEnvelopeWithOptions(msg, o.hostname, EnvelopeOptions{AckRequest: o.requestForwardAck})
 	if err != nil {
 		return err
 	}
@@ -77,7 +86,23 @@ func (o *Outbound) Send(ctx context.Context, msg *message.Message) error {
 		})
 	}
 
-	return o.SendEnvelope(ctx, peer, envelope, msg.From, msg.To)
+	return o.SendEnvelope(ctx, peer, envelope, o.smtpEnvelopeFrom(msg.From), o.smtpEnvelopeRecipients(msg.To))
+}
+
+func (o *Outbound) SendForwardResponse(ctx context.Context, msg *message.Message, statusCode string) error {
+	if msg == nil || msg.Origin != message.InterfaceMM4 || msg.OriginHost == "" {
+		return nil
+	}
+	peer, err := o.resolveOriginPeer(ctx, parseOriginatorSystemHost(msg.OriginHost))
+	if err != nil {
+		return err
+	}
+	recipient := reportRecipient(msg)
+	envelope, err := EncodeResponseEnvelope(mm4ForwardRes, msg.TransactionID, msg.ID, statusCode, o.hostname, recipient)
+	if err != nil {
+		return err
+	}
+	return o.SendEnvelope(ctx, peer, envelope, o.smtpEnvelopeFrom(o.hostname), o.smtpEnvelopeRecipients([]string{recipient}))
 }
 
 func (o *Outbound) SendDeliveryReport(ctx context.Context, msg *message.Message, status message.Status) error {
@@ -101,7 +126,8 @@ func (o *Outbound) SendDeliveryReport(ctx context.Context, msg *message.Message,
 			Detail:    fmt.Sprintf("origin_peer=%s status=%s", peer.SMTPHost, mm4StatusForMessage(status)),
 		})
 	}
-	return o.SendEnvelope(ctx, peer, envelope, o.hostname, []string{reportRecipient(msg)})
+	recipient := reportRecipient(msg)
+	return o.SendEnvelope(ctx, peer, envelope, o.smtpEnvelopeFrom(o.hostname), o.smtpEnvelopeRecipients([]string{recipient}))
 }
 
 func (o *Outbound) SendReadReply(ctx context.Context, msg *message.Message) error {
@@ -125,7 +151,8 @@ func (o *Outbound) SendReadReply(ctx context.Context, msg *message.Message) erro
 			Detail:    fmt.Sprintf("origin_peer=%s", peer.SMTPHost),
 		})
 	}
-	return o.SendEnvelope(ctx, peer, envelope, o.hostname, []string{reportRecipient(msg)})
+	recipient := reportRecipient(msg)
+	return o.SendEnvelope(ctx, peer, envelope, o.smtpEnvelopeFrom(o.hostname), o.smtpEnvelopeRecipients([]string{recipient}))
 }
 
 func (o *Outbound) SendEnvelope(ctx context.Context, peer db.MM4Peer, envelope []byte, from string, to []string) error {
@@ -143,6 +170,42 @@ func (o *Outbound) SendEnvelope(ctx context.Context, peer db.MM4Peer, envelope [
 		}
 	}
 	return lastErr
+}
+
+func (o *Outbound) smtpEnvelopeFrom(fallback string) string {
+	if o.envelopeFrom != "" {
+		return o.envelopeFrom
+	}
+	return fallback
+}
+
+func (o *Outbound) smtpEnvelopeRecipients(recipients []string) []string {
+	out := make([]string, 0, len(recipients))
+	for _, recipient := range recipients {
+		recipient = strings.TrimSpace(recipient)
+		if recipient == "" {
+			continue
+		}
+		if o.envelopeRecipientDomain != "" && !strings.Contains(recipient, "@") {
+			out = append(out, smtpAddressForMSISDN(recipient, o.envelopeRecipientDomain))
+			continue
+		}
+		out = append(out, recipient)
+	}
+	return out
+}
+
+func smtpAddressForMSISDN(value string, domain string) string {
+	value = stripType(value)
+	var local strings.Builder
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			local.WriteRune(r)
+		} else if r == '+' && local.Len() == 0 {
+			local.WriteRune(r)
+		}
+	}
+	return local.String() + "@" + strings.TrimPrefix(domain, "@")
 }
 
 func (o *Outbound) sendOnce(ctx context.Context, peer db.MM4Peer, from string, to []string, envelope []byte) error {

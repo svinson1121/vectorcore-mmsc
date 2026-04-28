@@ -148,6 +148,10 @@ func (h *MOHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 
+	if routeResult != nil && routeResult.Destination == routing.DestinationReject {
+		h.dispatchOriginDeliveryReportAsync(msg.Clone(), message.StatusRejected, log)
+		return
+	}
 	if routeResult != nil && routeResult.Destination == routing.DestinationLocal {
 		h.dispatchLocalNotificationAsync(msg.Clone(), cloneRoutingResult(routeResult), log)
 		return
@@ -201,7 +205,9 @@ func (h *MOHandler) toMessage(ctx context.Context, r *http.Request, pdu *mmspdu.
 	}
 
 	status := message.StatusQueued
-	if result != nil && (result.Destination == routing.DestinationMM4 || result.Destination == routing.DestinationMM3) {
+	if result != nil && result.Destination == routing.DestinationReject {
+		status = message.StatusRejected
+	} else if result != nil && (result.Destination == routing.DestinationMM4 || result.Destination == routing.DestinationMM3) {
 		status = message.StatusForwarded
 	}
 
@@ -219,6 +225,16 @@ func (h *MOHandler) toMessage(ctx context.Context, r *http.Request, pdu *mmspdu.
 		StoreID:       contentPath,
 		Origin:        message.InterfaceMM1,
 		Parts:         toMessageParts(pdu),
+	}
+	if value, ok := pdu.Headers[mmspdu.FieldDeliveryReport]; ok {
+		if token, err := value.Token(); err == nil {
+			msg.DeliveryReport = token == mmspdu.BooleanYes
+		}
+	}
+	if value, ok := pdu.Headers[mmspdu.FieldReadReply]; ok {
+		if token, err := value.Token(); err == nil {
+			msg.ReadReport = token == mmspdu.BooleanYes
+		}
 	}
 	if subject, err := headerText(pdu, mmspdu.FieldSubject); err == nil {
 		msg.Subject = subject
@@ -358,6 +374,26 @@ func (h *MOHandler) dispatchLocalNotificationAsync(msg message.Message, result *
 			})
 		}
 	}()
+}
+
+func (h *MOHandler) dispatchOriginDeliveryReportAsync(msg message.Message, status message.Status, log *zap.Logger) {
+	go func() {
+		ctx := context.Background()
+		if err := h.dispatchOriginDeliveryReport(ctx, &msg, status); err != nil {
+			log.Warn("mm1 mo origin delivery report failed", zap.Error(err))
+			_ = h.repo.AppendMessageEvent(ctx, db.MessageEvent{
+				MessageID: msg.ID,
+				Source:    "dispatch",
+				Type:      "origin-delivery-report-failed",
+				Summary:   "Origin delivery report failed",
+				Detail:    err.Error(),
+			})
+		}
+	}()
+}
+
+func (h *MOHandler) dispatchOriginDeliveryReport(ctx context.Context, msg *message.Message, status message.Status) error {
+	return SendOriginDeliveryReport(ctx, h.repo, h.smpp, msg, status)
 }
 
 func cloneRoutingResult(result *routing.Result) *routing.Result {

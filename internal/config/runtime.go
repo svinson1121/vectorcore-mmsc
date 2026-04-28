@@ -9,6 +9,7 @@ import (
 
 type RuntimeSnapshot struct {
 	Peers         []db.MM4Peer
+	MM4Routes     []db.MM4Route
 	MM3Relay      *db.MM3Relay
 	VASPs         []db.MM7VASP
 	SMPPUpstreams []db.SMPPUpstream
@@ -31,6 +32,7 @@ func (s *RuntimeStore) Snapshot() RuntimeSnapshot {
 
 	return RuntimeSnapshot{
 		Peers:         append([]db.MM4Peer(nil), s.snapshot.Peers...),
+		MM4Routes:     append([]db.MM4Route(nil), s.snapshot.MM4Routes...),
 		MM3Relay:      cloneMM3Relay(s.snapshot.MM3Relay),
 		VASPs:         append([]db.MM7VASP(nil), s.snapshot.VASPs...),
 		SMPPUpstreams: append([]db.SMPPUpstream(nil), s.snapshot.SMPPUpstreams...),
@@ -42,6 +44,7 @@ func (s *RuntimeStore) Replace(snapshot RuntimeSnapshot) {
 	s.mu.Lock()
 	s.snapshot = RuntimeSnapshot{
 		Peers:         append([]db.MM4Peer(nil), snapshot.Peers...),
+		MM4Routes:     append([]db.MM4Route(nil), snapshot.MM4Routes...),
 		MM3Relay:      cloneMM3Relay(snapshot.MM3Relay),
 		VASPs:         append([]db.MM7VASP(nil), snapshot.VASPs...),
 		SMPPUpstreams: append([]db.SMPPUpstream(nil), snapshot.SMPPUpstreams...),
@@ -70,7 +73,7 @@ func (s *RuntimeStore) Subscribe(buffer int) <-chan RuntimeSnapshot {
 	current := s.snapshot
 	s.mu.Unlock()
 
-	if len(current.Peers) > 0 || current.MM3Relay != nil || len(current.VASPs) > 0 || len(current.SMPPUpstreams) > 0 || len(current.Adaptation) > 0 {
+	if len(current.Peers) > 0 || len(current.MM4Routes) > 0 || current.MM3Relay != nil || len(current.VASPs) > 0 || len(current.SMPPUpstreams) > 0 || len(current.Adaptation) > 0 {
 		ch <- current
 	}
 	return ch
@@ -78,6 +81,10 @@ func (s *RuntimeStore) Subscribe(buffer int) <-chan RuntimeSnapshot {
 
 func LoadRuntimeSnapshot(ctx context.Context, repo db.Repository) (RuntimeSnapshot, error) {
 	peers, err := repo.ListMM4Peers(ctx)
+	if err != nil {
+		return RuntimeSnapshot{}, err
+	}
+	routes, err := repo.ListMM4Routes(ctx)
 	if err != nil {
 		return RuntimeSnapshot{}, err
 	}
@@ -99,6 +106,7 @@ func LoadRuntimeSnapshot(ctx context.Context, repo db.Repository) (RuntimeSnapsh
 	}
 	return RuntimeSnapshot{
 		Peers:         peers,
+		MM4Routes:     routes,
 		MM3Relay:      mm3Relay,
 		VASPs:         vasps,
 		SMPPUpstreams: upstreams,

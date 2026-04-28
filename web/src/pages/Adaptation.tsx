@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { Modal } from "../components/Modal";
 import { useToast } from "../components/Toast";
-import { AdaptationClass, asArray, csv, sendJSON, SystemConfig, useAPI } from "../lib/api";
+import { AdaptationClass, asArray, csv, sendJSON, sendRequest, SystemConfig, useAPI } from "../lib/api";
 
 type AdaptationFormState = {
   Name: string;
@@ -101,7 +101,7 @@ export function Adaptation() {
     }
     try {
       setError("");
-      await sendJSON(`/api/v1/adaptation/classes/${encodeURIComponent(name)}`, "DELETE", null);
+      await sendRequest(`/api/v1/adaptation/classes/${encodeURIComponent(name)}`, "DELETE");
       await classes.reload();
       toast.success("Adaptation class deleted", name);
     } catch (err) {

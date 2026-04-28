@@ -33,6 +33,7 @@ export interface MessageEvent {
 }
 
 export interface Peer {
+  Name: string;
   Domain: string;
   SMTPHost: string;
   SMTPPort: number;
@@ -41,6 +42,18 @@ export interface Peer {
   SMTPPass: string;
   TLSEnabled: boolean;
   AllowedIPs: string[];
+  Active: boolean;
+}
+
+export interface MM4Route {
+  ID: number;
+  Name: string;
+  MatchType: string;
+  MatchValue: string;
+  EgressType: string;
+  EgressTarget: string;
+  EgressPeerDomain: string;
+  Priority: number;
   Active: boolean;
 }
 
@@ -128,6 +141,7 @@ export function smppSubmissionStateLabel(state: number): string {
 
 export interface RuntimeSnapshot {
   peers: Peer[];
+  mm4_routes: MM4Route[];
   mm3_relay?: MM3Relay | null;
   vasps: VASP[];
   smpp_upstreams: SMPPUpstream[];
@@ -163,7 +177,14 @@ export async function fetchJSON<T>(path: string): Promise<T> {
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
-  const payload = (await response.json()) as Record<string, unknown>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+  const payload = JSON.parse(text) as Record<string, unknown>;
   if (payload && typeof payload === "object" && "body" in payload) {
     return payload.body as T;
   }
@@ -182,7 +203,14 @@ export async function sendJSON<T>(path: string, method: string, body: unknown): 
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
-  const payload = (await response.json()) as Record<string, unknown>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+  const payload = JSON.parse(text) as Record<string, unknown>;
   if (payload && typeof payload === "object" && "body" in payload) {
     return payload.body as T;
   }
