@@ -102,6 +102,7 @@ export interface SMPPUpstream {
   BindMode: string;
   EnquireLink: number;
   ReconnectWait: number;
+  RegisteredDelivery: number;
   Active: boolean;
 }
 

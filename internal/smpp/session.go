@@ -20,14 +20,15 @@ const (
 )
 
 type Config struct {
-	Host          string
-	Port          int
-	SystemID      string
-	Password      string
-	SystemType    string
-	BindMode      string
-	ReconnectWait time.Duration
-	EnquireLink   time.Duration
+	Host               string
+	Port               int
+	SystemID           string
+	Password           string
+	SystemType         string
+	BindMode           string
+	ReconnectWait      time.Duration
+	EnquireLink        time.Duration
+	RegisteredDelivery byte
 }
 
 type Session struct {

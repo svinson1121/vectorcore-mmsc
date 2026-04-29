@@ -417,6 +417,71 @@ func TestMOHandlerRejectRouteSendsFailureDeliveryReport(t *testing.T) {
 	}
 }
 
+func TestMOHandlerRejectRouteAlwaysOnFailureSendsReportWithoutRequest(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.Default()
+	cfg.MM1.DeliveryReportPolicy = DeliveryReportPolicyAlwaysOnFailure
+	cfg.Database.Driver = "sqlite"
+	cfg.Database.DSN = t.TempDir() + "/mm1-reject-policy.db"
+	cfg.Store.Backend = "filesystem"
+	cfg.Store.Filesystem.Root = t.TempDir()
+	cfg.MM4.Hostname = "mmsc.example.net"
+
+	repo, err := db.Open(context.Background(), db.OpenOptions{
+		Driver: cfg.Database.Driver,
+		DSN:    cfg.Database.DSN,
+	})
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	defer repo.Close()
+	runMM1TestMigrations(t, repo)
+	if err := repo.UpsertMM4Route(context.Background(), db.MM4Route{
+		Name:       "Reject recipient",
+		MatchType:  "msisdn_exact",
+		MatchValue: "+12025550101",
+		EgressType: "reject",
+		Priority:   500,
+		Active:     true,
+	}); err != nil {
+		t.Fatalf("upsert reject route: %v", err)
+	}
+
+	contentStore, err := store.New(context.Background(), cfg.Store)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	defer contentStore.Close()
+
+	pushSender := &fakePushSender{}
+	server := NewServer(cfg, repo, contentStore, routing.NewEngine(repo), nil, nil, nil, nil)
+	server.handler = NewMOHandler(cfg, repo, contentStore, routing.NewEngine(repo), pushSender, nil, nil, nil)
+	reqPDU := mmspdu.NewSendReqWithParts("txn-reject-policy", "+12025550100", []string{"+12025550101"}, []mmspdu.Part{
+		{ContentType: "text/plain", Data: []byte("blocked")},
+	})
+	reqBody, err := mmspdu.Encode(reqPDU)
+	if err != nil {
+		t.Fatalf("encode req: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/mms", bytes.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/vnd.wap.mms-message")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for pushSender.calls != 1 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if pushSender.calls != 1 || pushSender.msisdn != "+12025550100" {
+		t.Fatalf("expected policy-driven failure report push, got %#v", pushSender)
+	}
+}
+
 func TestMOHandlerRejectsSendReqWithoutParts(t *testing.T) {
 	t.Parallel()
 

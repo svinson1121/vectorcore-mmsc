@@ -224,16 +224,17 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	}
 
 	if err := repo.UpsertSMPPUpstream(context.Background(), SMPPUpstream{
-		Name:          "primary",
-		Host:          "smsc.example.net",
-		Port:          2775,
-		SystemID:      "mmsc",
-		Password:      "secret",
-		SystemType:    "test",
-		BindMode:      "transceiver",
-		EnquireLink:   15,
-		ReconnectWait: 3,
-		Active:        true,
+		Name:               "primary",
+		Host:               "smsc.example.net",
+		Port:               2775,
+		SystemID:           "mmsc",
+		Password:           "secret",
+		SystemType:         "test",
+		BindMode:           "transceiver",
+		EnquireLink:        15,
+		ReconnectWait:      3,
+		RegisteredDelivery: 3,
+		Active:             true,
 	}); err != nil {
 		t.Fatalf("upsert smpp upstream: %v", err)
 	}
@@ -241,7 +242,7 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list smpp upstreams: %v", err)
 	}
-	if len(upstreams) != 1 || upstreams[0].Name != "primary" {
+	if len(upstreams) != 1 || upstreams[0].Name != "primary" || upstreams[0].RegisteredDelivery != 3 {
 		t.Fatalf("unexpected upstreams: %#v", upstreams)
 	}
 	if err := repo.DeleteSMPPUpstream(context.Background(), "primary"); err != nil {

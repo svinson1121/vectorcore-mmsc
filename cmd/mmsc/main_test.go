@@ -207,7 +207,7 @@ func TestHandleSMPPDeliveryReceiptMarksMessageDelivered(t *testing.T) {
 		t.Fatalf("create second smpp submission: %v", err)
 	}
 
-	if err := handleSMPPDeliveryReceipt(context.Background(), repo, "primary", &smpp.DeliveryReceipt{
+	if err := handleSMPPDeliveryReceipt(context.Background(), repo, nil, "primary", &smpp.DeliveryReceipt{
 		ID:   "smpp-1",
 		Stat: "DELIVRD",
 	}); err != nil {
@@ -222,7 +222,7 @@ func TestHandleSMPPDeliveryReceiptMarksMessageDelivered(t *testing.T) {
 		t.Fatalf("expected delivering status until all segments complete, got %v", got.Status)
 	}
 
-	if err := handleSMPPDeliveryReceipt(context.Background(), repo, "primary", &smpp.DeliveryReceipt{
+	if err := handleSMPPDeliveryReceipt(context.Background(), repo, nil, "primary", &smpp.DeliveryReceipt{
 		ID:   "smpp-2",
 		Stat: "DELIVRD",
 	}); err != nil {
@@ -278,7 +278,8 @@ func TestHandleSMPPDeliveryReceiptMarksMessageUnreachableWhenAnySegmentFails(t *
 		t.Fatalf("create second submission: %v", err)
 	}
 
-	if err := handleSMPPDeliveryReceipt(context.Background(), repo, "primary", &smpp.DeliveryReceipt{
+	reporter := &recordingDeliveryReporter{}
+	if err := handleSMPPDeliveryReceipt(context.Background(), repo, reporter, "primary", &smpp.DeliveryReceipt{
 		ID:   "smpp-fail-2",
 		Stat: "UNDELIV",
 		Err:  "255",
@@ -293,6 +294,22 @@ func TestHandleSMPPDeliveryReceiptMarksMessageUnreachableWhenAnySegmentFails(t *
 	if got.Status != message.StatusUnreachable {
 		t.Fatalf("expected unreachable status, got %v", got.Status)
 	}
+	if reporter.messageID != msg.ID || reporter.status != message.StatusUnreachable {
+		t.Fatalf("expected failure report for message, got id=%q status=%v", reporter.messageID, reporter.status)
+	}
+}
+
+type recordingDeliveryReporter struct {
+	messageID string
+	status    message.Status
+}
+
+func (r *recordingDeliveryReporter) SendDeliveryReport(_ context.Context, msg *message.Message, status message.Status) error {
+	if msg != nil {
+		r.messageID = msg.ID
+	}
+	r.status = status
+	return nil
 }
 
 func newTestRepo(t *testing.T) db.Repository {

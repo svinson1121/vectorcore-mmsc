@@ -159,16 +159,17 @@ type MM7VASP struct {
 }
 
 type SMPPUpstream struct {
-	Name          string
-	Host          string
-	Port          int
-	SystemID      string
-	Password      string
-	SystemType    string
-	BindMode      string
-	EnquireLink   int
-	ReconnectWait int
-	Active        bool
+	Name               string
+	Host               string
+	Port               int
+	SystemID           string
+	Password           string
+	SystemType         string
+	BindMode           string
+	EnquireLink        int
+	ReconnectWait      int
+	RegisteredDelivery int
+	Active             bool
 }
 
 type SMPPSubmissionState int

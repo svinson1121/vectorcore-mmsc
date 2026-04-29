@@ -47,14 +47,15 @@ func (c *Client) SetDeliveryReceiptHandler(fn func(*DeliveryReceipt)) {
 
 func NewClientFromUpstream(upstream db.SMPPUpstream) *Client {
 	return NewClient(Config{
-		Host:          upstream.Host,
-		Port:          upstream.Port,
-		SystemID:      upstream.SystemID,
-		Password:      upstream.Password,
-		SystemType:    upstream.SystemType,
-		BindMode:      upstream.BindMode,
-		ReconnectWait: durationSeconds(upstream.ReconnectWait),
-		EnquireLink:   durationSeconds(upstream.EnquireLink),
+		Host:               upstream.Host,
+		Port:               upstream.Port,
+		SystemID:           upstream.SystemID,
+		Password:           upstream.Password,
+		SystemType:         upstream.SystemType,
+		BindMode:           upstream.BindMode,
+		ReconnectWait:      durationSeconds(upstream.ReconnectWait),
+		EnquireLink:        durationSeconds(upstream.EnquireLink),
+		RegisteredDelivery: byte(upstream.RegisteredDelivery),
 	})
 }
 

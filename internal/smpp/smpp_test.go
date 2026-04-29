@@ -59,6 +59,41 @@ func TestClientSubmitWAPPush(t *testing.T) {
 	}
 }
 
+func TestClientSubmitWAPPushUsesConfiguredRegisteredDelivery(t *testing.T) {
+	t.Parallel()
+
+	submits := make(chan *PDU, 2)
+	serverConn, clientConn := net.Pipe()
+	go fakeSMSCConn(t, serverConn, submits)
+
+	client := NewClient(Config{
+		Host:               "127.0.0.1",
+		Port:               2775,
+		SystemID:           "mmsc",
+		Password:           "secret",
+		BindMode:           "transceiver",
+		RegisteredDelivery: 0x03,
+	})
+	client.SetDialFunc(func(context.Context, string, string) (net.Conn, error) {
+		return clientConn, nil
+	})
+	defer client.Close()
+
+	push := wappush.WrapMMSPDU(make([]byte, 32))
+	if err := client.SubmitWAPPush(context.Background(), "+12025550199", "+12025550100", push); err != nil {
+		t.Fatalf("submit wap push: %v", err)
+	}
+
+	select {
+	case pdu := <-submits:
+		if pdu.RegisteredDelivery != 0x03 {
+			t.Fatalf("unexpected registered delivery: %x", pdu.RegisteredDelivery)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for submit")
+	}
+}
+
 func TestEnquireLink(t *testing.T) {
 	t.Parallel()
 

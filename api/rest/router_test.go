@@ -515,15 +515,16 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	handler := NewRouter(config.Default(), repo, config.NewRuntimeStore(), smpp.NewManager(), nil, "0.0.1d", time.Unix(0, 0))
 
 	upstreamBody, _ := json.Marshal(db.SMPPUpstream{
-		Name:          "primary",
-		Host:          "smsc.example.net",
-		Port:          2775,
-		SystemID:      "mmsc",
-		Password:      "secret",
-		BindMode:      "transceiver",
-		EnquireLink:   30,
-		ReconnectWait: 5,
-		Active:        true,
+		Name:               "primary",
+		Host:               "smsc.example.net",
+		Port:               2775,
+		SystemID:           "mmsc",
+		Password:           "secret",
+		BindMode:           "transceiver",
+		EnquireLink:        30,
+		ReconnectWait:      5,
+		RegisteredDelivery: 3,
+		Active:             true,
 	})
 	upstreamReq := httptest.NewRequest(http.MethodPost, "/api/v1/smpp/upstreams", bytes.NewReader(upstreamBody))
 	upstreamRec := httptest.NewRecorder()
@@ -541,7 +542,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err := repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 {
+	if err != nil || len(upstreams) != 1 || upstreams[0].RegisteredDelivery != 3 {
 		t.Fatalf("unexpected upstreams: %#v err=%v", upstreams, err)
 	}
 	updated, err := repo.GetMessage(context.Background(), "mid-2")
@@ -553,14 +554,15 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreamBody, _ = json.Marshal(db.SMPPUpstream{
-		Host:          "smsc2.example.net",
-		Port:          2776,
-		SystemID:      "mmsc2",
-		Password:      "secret2",
-		BindMode:      "receiver",
-		EnquireLink:   15,
-		ReconnectWait: 6,
-		Active:        false,
+		Host:               "smsc2.example.net",
+		Port:               2776,
+		SystemID:           "mmsc2",
+		Password:           "secret2",
+		BindMode:           "receiver",
+		EnquireLink:        15,
+		ReconnectWait:      6,
+		RegisteredDelivery: 2,
+		Active:             false,
 	})
 	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/smpp/upstreams/primary", bytes.NewReader(upstreamBody))
 	putRec := httptest.NewRecorder()
@@ -570,7 +572,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err = repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].Active {
+	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].RegisteredDelivery != 2 || upstreams[0].Active {
 		t.Fatalf("unexpected updated upstreams: %#v err=%v", upstreams, err)
 	}
 

@@ -50,11 +50,28 @@ store:
 	if cfg.MM1.Listen == "" {
 		t.Fatal("expected default MM1 listen to be preserved")
 	}
+	if cfg.MM1.DeliveryReportPolicy != "requested_only" {
+		t.Fatalf("unexpected default delivery_report_policy: %q", cfg.MM1.DeliveryReportPolicy)
+	}
 	if cfg.Database.RuntimeReloadInterval != 5*time.Second {
 		t.Fatalf("unexpected runtime_reload_interval: %s", cfg.Database.RuntimeReloadInterval)
 	}
 	if cfg.MM7.Version != "5.3.0" {
 		t.Fatalf("unexpected default mm7 version: %q", cfg.MM7.Version)
+	}
+}
+
+func TestValidateRejectsUnknownMM1DeliveryReportPolicy(t *testing.T) {
+	t.Parallel()
+
+	cfg := Default()
+	cfg.Database.DSN = ":memory:"
+	cfg.Store.Backend = "filesystem"
+	cfg.Store.Filesystem.Root = t.TempDir()
+	cfg.MM1.DeliveryReportPolicy = "sometimes"
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for unsupported mm1 delivery report policy")
 	}
 }
 

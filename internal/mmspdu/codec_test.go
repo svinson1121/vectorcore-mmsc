@@ -565,6 +565,47 @@ func TestDeliveryIndParsing(t *testing.T) {
 	}
 }
 
+func TestNewDeliveryIndIncludesDateAndStableHeaderOrder(t *testing.T) {
+	t.Parallel()
+
+	raw, err := Encode(NewDeliveryInd("mid-reject", "+12025550100", StatusRejected))
+	if err != nil {
+		t.Fatalf("encode delivery ind: %v", err)
+	}
+	decoded, err := Decode(raw)
+	if err != nil {
+		t.Fatalf("decode delivery ind: %v", err)
+	}
+	if decoded.MessageType != MsgTypeDeliveryInd {
+		t.Fatalf("unexpected message type: %x", decoded.MessageType)
+	}
+	for _, field := range []byte{FieldMessageID, FieldDate, FieldTo, FieldStatus} {
+		if _, ok := decoded.Headers[field]; !ok {
+			t.Fatalf("missing delivery-ind header 0x%02x in %#v", field, decoded.Headers)
+		}
+	}
+	gotOrder := decoded.HeaderOrder
+	wantOrder := []byte{FieldMessageType, FieldMMSVersion, FieldMessageID, FieldDate, FieldTo, FieldStatus}
+	if len(gotOrder) != len(wantOrder) {
+		t.Fatalf("unexpected header order length: got %#v want %#v", gotOrder, wantOrder)
+	}
+	for i := range wantOrder {
+		if gotOrder[i] != wantOrder[i] {
+			t.Fatalf("unexpected header order: got %#v want %#v", gotOrder, wantOrder)
+		}
+	}
+	parsed, err := ParseDeliveryInd(decoded)
+	if err != nil {
+		t.Fatalf("parse delivery ind: %v", err)
+	}
+	if parsed.MessageID != "mid-reject" || parsed.To != "+12025550100/TYPE=PLMN" || parsed.Status != StatusRejected {
+		t.Fatalf("unexpected parsed delivery ind: %#v", parsed)
+	}
+	if _, err := parsed.Date.Time(); err != nil {
+		t.Fatalf("delivery date parse: %v", err)
+	}
+}
+
 func TestAcknowledgeIndRoundTrip(t *testing.T) {
 	t.Parallel()
 

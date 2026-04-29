@@ -236,6 +236,7 @@ func sameRuntimeConfig(cfg Config, upstream db.SMPPUpstream) bool {
 		cfg.Password == upstream.Password &&
 		cfg.SystemType == upstream.SystemType &&
 		cfg.BindMode == upstream.BindMode &&
+		cfg.RegisteredDelivery == byte(upstream.RegisteredDelivery) &&
 		cfg.ReconnectWait == durationSeconds(upstream.ReconnectWait) &&
 		cfg.EnquireLink == durationSeconds(upstream.EnquireLink)
 }

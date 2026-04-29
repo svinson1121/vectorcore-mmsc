@@ -3,14 +3,29 @@ package mm1
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/vectorcore/vectorcore-mmsc/internal/db"
 	"github.com/vectorcore/vectorcore-mmsc/internal/message"
 	"github.com/vectorcore/vectorcore-mmsc/internal/mmspdu"
 )
 
-func SendOriginDeliveryReport(ctx context.Context, repo db.Repository, push PushSender, msg *message.Message, status message.Status) error {
-	if msg == nil || msg.Origin != message.InterfaceMM1 || !msg.DeliveryReport || push == nil || msg.From == "" {
+const (
+	DeliveryReportPolicyRequestedOnly   = "requested_only"
+	DeliveryReportPolicyAlwaysOnFailure = "always_on_failure"
+	DeliveryReportPolicyDisabled        = "disabled"
+)
+
+func SendOriginDeliveryReport(ctx context.Context, repo db.Repository, push PushSender, msg *message.Message, status message.Status, policy ...string) error {
+	if msg == nil || msg.Origin != message.InterfaceMM1 || push == nil || msg.From == "" {
+		return nil
+	}
+	resolvedPolicy := DeliveryReportPolicyRequestedOnly
+	if len(policy) > 0 && strings.TrimSpace(policy[0]) != "" {
+		resolvedPolicy = strings.TrimSpace(policy[0])
+	}
+	if !shouldSendOriginDeliveryReport(msg, status, resolvedPolicy) {
+		appendOriginReportSkipped(ctx, repo, msg.ID, resolvedPolicy, msg.DeliveryReport)
 		return nil
 	}
 	pdu := mmspdu.NewDeliveryInd(msg.ID, msg.From, deliveryStatusToken(status))
@@ -35,6 +50,34 @@ func SendOriginDeliveryReport(ctx context.Context, repo db.Repository, push Push
 		})
 	}
 	return nil
+}
+
+func shouldSendOriginDeliveryReport(msg *message.Message, status message.Status, policy string) bool {
+	switch policy {
+	case DeliveryReportPolicyDisabled:
+		return false
+	case DeliveryReportPolicyAlwaysOnFailure:
+		return msg.DeliveryReport || isFailureStatus(status)
+	default:
+		return msg.DeliveryReport
+	}
+}
+
+func isFailureStatus(status message.Status) bool {
+	return status == message.StatusRejected || status == message.StatusExpired || status == message.StatusUnreachable
+}
+
+func appendOriginReportSkipped(ctx context.Context, repo db.Repository, messageID string, policy string, requested bool) {
+	if repo == nil || messageID == "" {
+		return
+	}
+	_ = repo.AppendMessageEvent(ctx, db.MessageEvent{
+		MessageID: messageID,
+		Source:    "dispatch",
+		Type:      "origin-delivery-report-skipped",
+		Summary:   "Origin delivery report skipped",
+		Detail:    fmt.Sprintf("policy=%s requested=%t", policy, requested),
+	})
 }
 
 func deliveryStatusToken(status message.Status) byte {

@@ -1,6 +1,14 @@
 package mmspdu
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
+
+var deliveryIndHeaderOrder = []byte{
+	FieldMessageType, FieldMMSVersion, FieldMessageID,
+	FieldDate, FieldTo, FieldStatus,
+}
 
 type DeliveryInd struct {
 	MessageID string
@@ -15,9 +23,11 @@ func NewDeliveryInd(messageID, to string, status byte) *PDU {
 		MMSVersion:  "1.3",
 		Headers: map[byte]HeaderValue{
 			FieldMessageID: NewTextValue(FieldMessageID, messageID),
+			FieldDate:      NewDateValue(FieldDate, time.Now().UTC()),
 			FieldTo:        NewAddressValue(FieldTo, to),
 			FieldStatus:    NewTokenValue(FieldStatus, status),
 		},
+		HeaderOrder: deliveryIndHeaderOrder,
 	}
 }
 

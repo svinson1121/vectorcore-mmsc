@@ -69,22 +69,20 @@ func (c *Client) submitSegment(ctx context.Context, sourceAddr string, msisdn st
 	err := c.session.WithConn(ctx, func(conn *Conn) error {
 		sourceTON, sourceNPI := classifySourceAddress(sourceAddr)
 		req := &PDU{
-			CommandID:          CmdSubmitSM,
-			CommandStatus:      ESMEROK,
-			SequenceNumber:     conn.NextSeq(),
-			ServiceType:        "WAP",
-			SourceAddrTON:      sourceTON,
-			SourceAddrNPI:      sourceNPI,
-			SourceAddr:         sourceAddr,
-			DestAddrTON:        0x01,
-			DestAddrNPI:        0x01,
-			DestinationAddr:    msisdn,
-			ESMClass:           ESMClassUDHI,
+			CommandID:       CmdSubmitSM,
+			CommandStatus:   ESMEROK,
+			SequenceNumber:  conn.NextSeq(),
+			ServiceType:     "WAP",
+			SourceAddrTON:   sourceTON,
+			SourceAddrNPI:   sourceNPI,
+			SourceAddr:      sourceAddr,
+			DestAddrTON:     0x01,
+			DestAddrNPI:     0x01,
+			DestinationAddr: msisdn,
+			ESMClass:        ESMClassUDHI,
 			// 0xF5: 8-bit data, Class 1 (ME-specific) — required for WAP Push.
 			DataCoding:         0xF5,
-			// No SMSC delivery receipt; WAP Push delivery is tracked at the
-			// application layer, not via SMPP receipts.
-			RegisteredDelivery: 0x00,
+			RegisteredDelivery: c.cfg.RegisteredDelivery,
 			ShortMessage:       payload,
 		}
 		resp, err := c.session.Request(ctx, req, CmdSubmitSMResp)

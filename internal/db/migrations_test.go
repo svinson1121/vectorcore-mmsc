@@ -42,8 +42,8 @@ func TestRunMigrationsSQLite(t *testing.T) {
 	if err := repo.DB().QueryRow(`select count(*) from schema_migrations`).Scan(&migrationCount); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if migrationCount != 12 {
-		t.Fatalf("unexpected migration count: got %d want 12", migrationCount)
+	if migrationCount != 13 {
+		t.Fatalf("unexpected migration count: got %d want 13", migrationCount)
 	}
 }
 

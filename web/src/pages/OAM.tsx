@@ -19,7 +19,6 @@ export function OAM() {
   );
   const smpp = useAPI<{ upstreams: SMPPStatus[] }>("/api/v1/smpp/status", { upstreams: [] }, 10000);
   const [queueOpen, setQueueOpen] = useState(false);
-  const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [queueFilter, setQueueFilter] = useState<"all" | "queued" | "delivering">("all");
   const [queueSelected, setQueueSelected] = useState<Message | null>(null);
   const [busyID, setBusyID] = useState("");
@@ -118,9 +117,6 @@ export function OAM() {
             <div className="inline-actions">
               <button className="button" type="button" onClick={() => setQueueOpen(true)}>
                 View Queue ({system.data.queue_visible || queueVisible.length})
-              </button>
-              <button className="btn btn-ghost" type="button" onClick={() => setSnapshotOpen(true)}>
-                Runtime Snapshot
               </button>
             </div>
           </div>
@@ -245,14 +241,6 @@ export function OAM() {
                 </tbody>
               </table>
             </div>
-          </div>
-        </Modal>
-      ) : null}
-
-      {snapshotOpen ? (
-        <Modal title="Runtime Snapshot" onClose={() => setSnapshotOpen(false)} size="lg">
-          <div className="modal-body">
-            <pre className="code">{JSON.stringify(runtime.data, null, 2)}</pre>
           </div>
         </Modal>
       ) : null}

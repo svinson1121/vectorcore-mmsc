@@ -393,7 +393,7 @@ func (h *MOHandler) dispatchOriginDeliveryReportAsync(msg message.Message, statu
 }
 
 func (h *MOHandler) dispatchOriginDeliveryReport(ctx context.Context, msg *message.Message, status message.Status) error {
-	return SendOriginDeliveryReport(ctx, h.repo, h.smpp, msg, status)
+	return SendOriginDeliveryReport(ctx, h.repo, h.smpp, msg, status, h.cfg.MM1.DeliveryReportPolicy)
 }
 
 func cloneRoutingResult(result *routing.Result) *routing.Result {

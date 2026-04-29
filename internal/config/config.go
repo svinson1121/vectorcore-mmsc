@@ -34,9 +34,10 @@ type DatabaseConfig struct {
 }
 
 type MM1Config struct {
-	Listen           string `yaml:"listen"`
-	RetrieveBaseURL  string `yaml:"retrieve_base_url"`
-	MaxBodySizeBytes int64  `yaml:"max_body_size_bytes"`
+	Listen               string `yaml:"listen"`
+	RetrieveBaseURL      string `yaml:"retrieve_base_url"`
+	MaxBodySizeBytes     int64  `yaml:"max_body_size_bytes"`
+	DeliveryReportPolicy string `yaml:"delivery_report_policy"`
 }
 
 type MM3Config struct {
@@ -153,8 +154,9 @@ func Default() *Config {
 			RuntimeReloadInterval: 5 * time.Second,
 		},
 		MM1: MM1Config{
-			Listen:           ":8002",
-			MaxBodySizeBytes: 10 * 1024 * 1024,
+			Listen:               ":8002",
+			MaxBodySizeBytes:     10 * 1024 * 1024,
+			DeliveryReportPolicy: "requested_only",
 		},
 		MM3: MM3Config{
 			InboundListen:       ":2026",
@@ -214,6 +216,14 @@ func (c *Config) Validate() error {
 	}
 	if c.API.Listen == "" {
 		return errors.New("api.listen is required")
+	}
+	if c.MM1.DeliveryReportPolicy == "" {
+		c.MM1.DeliveryReportPolicy = "requested_only"
+	}
+	switch c.MM1.DeliveryReportPolicy {
+	case "requested_only", "always_on_failure", "disabled":
+	default:
+		return fmt.Errorf("unsupported mm1.delivery_report_policy %q", c.MM1.DeliveryReportPolicy)
 	}
 	if c.Store.Backend == "" {
 		return errors.New("store.backend is required")

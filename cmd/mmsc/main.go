@@ -28,6 +28,7 @@ import (
 	"github.com/vectorcore/vectorcore-mmsc/internal/mm3"
 	"github.com/vectorcore/vectorcore-mmsc/internal/mm4"
 	"github.com/vectorcore/vectorcore-mmsc/internal/mm7"
+	"github.com/vectorcore/vectorcore-mmsc/internal/queue"
 	"github.com/vectorcore/vectorcore-mmsc/internal/routing"
 	"github.com/vectorcore/vectorcore-mmsc/internal/smpp"
 	"github.com/vectorcore/vectorcore-mmsc/internal/store"
@@ -102,13 +103,7 @@ func main() {
 	if err := smppManager.Refresh(initialSnapshot); err != nil {
 		logger.Fatal("refresh smpp manager", zap.Error(err))
 	}
-	smppManager.SetDeliveryReceiptHandler(func(upstream string, receipt *smpp.DeliveryReceipt) {
-		if err := handleSMPPDeliveryReceipt(context.Background(), repo, upstream, receipt); err != nil {
-			logger.Warn("failed to process smpp delivery receipt", zap.String("upstream", upstream), zap.Error(err))
-		}
-	})
 	defer smppManager.Close()
-	smppManager.StartAutoRefresh(ctx, runtimeStore.Subscribe(4))
 
 	watcher := config.NewWatcher(cfg.Database, repo, runtimeStore, logger)
 	go func() {
@@ -128,7 +123,13 @@ func main() {
 	mm4Outbound.SetEnvelopeOptions(cfg.MM4.SMTPEnvelopeFrom, cfg.MM4.SMTPEnvelopeRecipientDomain, cfg.MM4.RequestForwardAcknowledgement)
 	mm3Outbound := mm3.NewOutbound(runtimeStore, cfg.MM4.Hostname)
 	mm7Notifier := mm7.NewNotifier(repo, mm7.WithProtocol(cfg.MM7.Version, cfg.MM7.Namespace))
-	reporter := combinedReporter{repo: repo, mm1: smppManager, mm7: mm7Notifier, mm4: mm4Outbound}
+	reporter := combinedReporter{repo: repo, mm1: smppManager, mm1Policy: cfg.MM1.DeliveryReportPolicy, mm7: mm7Notifier, mm4: mm4Outbound}
+	smppManager.SetDeliveryReceiptHandler(func(upstream string, receipt *smpp.DeliveryReceipt) {
+		if err := handleSMPPDeliveryReceipt(context.Background(), repo, reporter, upstream, receipt); err != nil {
+			logger.Warn("failed to process smpp delivery receipt", zap.String("upstream", upstream), zap.Error(err))
+		}
+	})
+	smppManager.StartAutoRefresh(ctx, runtimeStore.Subscribe(4))
 	mm1Server := &http.Server{
 		Addr:              cfg.MM1.Listen,
 		Handler:           withHTTPLogging("mm1", mm1.NewServer(cfg, repo, contentStore, router, smppManager, mm4Outbound, mm3Outbound, reporter)),
@@ -164,6 +165,8 @@ func main() {
 
 	sweeper := sweep.New(cfg.Limits, repo, contentStore, reporter)
 	go sweeper.Run(ctx)
+	queueDispatcher := queue.New(cfg.MM1, repo, smppManager)
+	go queueDispatcher.Run(ctx)
 
 	billingNodeID := cfg.Billing.NodeID
 	if billingNodeID == "" {
@@ -252,8 +255,15 @@ type serverGroup struct {
 }
 
 type combinedReporter struct {
-	mm7 *mm7.Notifier
-	mm4 *mm4.Outbound
+	repo      db.Repository
+	mm1       mm1.PushSender
+	mm1Policy string
+	mm7       *mm7.Notifier
+	mm4       *mm4.Outbound
+}
+
+type deliveryReporter interface {
+	SendDeliveryReport(context.Context, *message.Message, message.Status) error
 }
 
 func (r combinedReporter) SendDeliveryReport(ctx context.Context, msg *message.Message, status message.Status) error {
@@ -261,6 +271,8 @@ func (r combinedReporter) SendDeliveryReport(ctx context.Context, msg *message.M
 		return nil
 	}
 	switch msg.Origin {
+	case message.InterfaceMM1:
+		return mm1.SendOriginDeliveryReport(ctx, r.repo, r.mm1, msg, status, r.mm1Policy)
 	case message.InterfaceMM7:
 		if r.mm7 != nil {
 			return r.mm7.SendDeliveryReport(ctx, msg, status)
@@ -378,7 +390,7 @@ func isClosedListener(err error) bool {
 	return errors.Is(err, net.ErrClosed)
 }
 
-func handleSMPPDeliveryReceipt(ctx context.Context, repo db.Repository, upstream string, receipt *smpp.DeliveryReceipt) error {
+func handleSMPPDeliveryReceipt(ctx context.Context, repo db.Repository, reporter deliveryReporter, upstream string, receipt *smpp.DeliveryReceipt) error {
 	if repo == nil || receipt == nil || receipt.ID == "" {
 		return nil
 	}
@@ -398,7 +410,18 @@ func handleSMPPDeliveryReceipt(ctx context.Context, repo db.Repository, upstream
 	if messageStatus == nil {
 		return nil
 	}
-	return repo.UpdateMessageStatus(ctx, submission.InternalMessageID, *messageStatus)
+	msg, err := repo.GetMessage(ctx, submission.InternalMessageID)
+	if err != nil {
+		return err
+	}
+	previousStatus := msg.Status
+	if err := repo.UpdateMessageStatus(ctx, submission.InternalMessageID, *messageStatus); err != nil {
+		return err
+	}
+	if reporter != nil && *messageStatus == message.StatusUnreachable && previousStatus != message.StatusUnreachable {
+		return reporter.SendDeliveryReport(ctx, msg, *messageStatus)
+	}
+	return nil
 }
 
 func mapSMPPReceiptStatus(receipt *smpp.DeliveryReceipt) (db.SMPPSubmissionState, string) {

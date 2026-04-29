@@ -291,6 +291,7 @@ function SMPPUpstreamsTab() {
     BindMode: "transceiver",
     EnquireLink: "30",
     ReconnectWait: "5",
+    RegisteredDelivery: "0",
     Active: true,
   });
 
@@ -308,6 +309,7 @@ function SMPPUpstreamsTab() {
       BindMode: "transceiver",
       EnquireLink: "30",
       ReconnectWait: "5",
+      RegisteredDelivery: "0",
       Active: true,
     });
   }
@@ -332,6 +334,7 @@ function SMPPUpstreamsTab() {
       BindMode: item.BindMode,
       EnquireLink: String(item.EnquireLink),
       ReconnectWait: String(item.ReconnectWait),
+      RegisteredDelivery: String(item.RegisteredDelivery ?? 0),
       Active: item.Active,
     });
     setShowAdd(true);
@@ -351,6 +354,7 @@ function SMPPUpstreamsTab() {
         BindMode: form.BindMode,
         EnquireLink: Number(form.EnquireLink) || 30,
         ReconnectWait: Number(form.ReconnectWait) || 5,
+        RegisteredDelivery: Number(form.RegisteredDelivery) || 0,
         Active: form.Active,
       };
       if (editing) {
@@ -449,6 +453,7 @@ function SMPPUpstreamsTab() {
                 <th>System ID</th>
                 <th>Bind Mode</th>
                 <th>State</th>
+                <th>DLR</th>
                 <th>Enquire</th>
                 <th>Actions</th>
               </tr>
@@ -465,6 +470,7 @@ function SMPPUpstreamsTab() {
                     <td className="mono">{item.SystemID}</td>
                     <td>{item.BindMode}</td>
                     <td>{state}</td>
+                    <td>{smppDLRLabel(item.RegisteredDelivery)}</td>
                     <td className="mono">{item.EnquireLink}s</td>
                     <td>
                       <div className="flex gap-8">
@@ -536,6 +542,15 @@ function SMPPUpstreamsTab() {
                     <span>Reconnect Wait</span>
                     <input className="input" value={form.ReconnectWait} onChange={(event) => setForm({ ...form, ReconnectWait: event.target.value })} />
                   </label>
+                  <label className="field">
+                    <span>Delivery Receipts</span>
+                    <select className="input" value={form.RegisteredDelivery} onChange={(event) => setForm({ ...form, RegisteredDelivery: event.target.value })}>
+                      <option value="0">None</option>
+                      <option value="1">Success</option>
+                      <option value="2">Failure</option>
+                      <option value="3">Success + failure</option>
+                    </select>
+                  </label>
                   <label className="checkbox">
                     <input type="checkbox" checked={form.Active} onChange={(event) => setForm({ ...form, Active: event.target.checked })} />
                     <span>Active</span>
@@ -556,4 +571,17 @@ function SMPPUpstreamsTab() {
       ) : null}
     </div>
   );
+}
+
+function smppDLRLabel(value: number): string {
+  switch (value) {
+    case 1:
+      return "Success";
+    case 2:
+      return "Failure";
+    case 3:
+      return "Success + failure";
+    default:
+      return "None";
+  }
 }
