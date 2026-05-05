@@ -169,6 +169,8 @@ type SMPPUpstream struct {
 	EnquireLink        int
 	ReconnectWait      int
 	RegisteredDelivery int
+	SourceAddrTON      *int
+	SourceAddrNPI      *int
 	DestAddrTON        *int
 	DestAddrNPI        *int
 	Active             bool

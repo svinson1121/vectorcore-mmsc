@@ -76,6 +76,12 @@ func (c *Client) submitSegment(ctx context.Context, sourceAddr string, msisdn st
 	)
 	err := c.session.WithConn(ctx, func(conn *Conn) error {
 		sourceTON, sourceNPI := classifySourceAddress(sourceAddr)
+		if c.cfg.SourceAddrTONSet {
+			sourceTON = c.cfg.SourceAddrTON
+		}
+		if c.cfg.SourceAddrNPISet {
+			sourceNPI = c.cfg.SourceAddrNPI
+		}
 		req := &PDU{
 			CommandID:       CmdSubmitSM,
 			CommandStatus:   ESMEROK,

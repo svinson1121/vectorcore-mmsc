@@ -6,6 +6,33 @@ import { asArray, csv, Peer, sendJSON, sendRequest, SMPPStatus, SMPPUpstream, sm
 
 type PeerTab = "mm4" | "smpp";
 
+const smppTONOptions = [
+  { value: "0", label: "0 - Unknown" },
+  { value: "1", label: "1 - International" },
+  { value: "2", label: "2 - National" },
+  { value: "3", label: "3 - Network Specific" },
+  { value: "4", label: "4 - Subscriber Number" },
+  { value: "5", label: "5 - Alphanumeric" },
+  { value: "6", label: "6 - Abbreviated" },
+];
+
+const smppNPIOptions = [
+  { value: "0", label: "0 - Unknown" },
+  { value: "1", label: "1 - ISDN / E.164" },
+  { value: "3", label: "3 - Data / X.121" },
+  { value: "4", label: "4 - Telex / F.69" },
+  { value: "6", label: "6 - Land Mobile / E.212" },
+  { value: "8", label: "8 - National" },
+  { value: "9", label: "9 - Private" },
+  { value: "10", label: "10 - ERMES" },
+  { value: "13", label: "13 - Internet" },
+  { value: "18", label: "18 - WAP Client ID" },
+];
+
+function optionalSMPPAddressValue(value: string): number | null {
+  return value === "auto" ? null : Number(value);
+}
+
 export function Peers() {
   const [tab, setTab] = useState<PeerTab>("mm4");
   return (
@@ -292,6 +319,8 @@ function SMPPUpstreamsTab() {
     EnquireLink: "30",
     ReconnectWait: "5",
     RegisteredDelivery: "0",
+    SourceAddrTON: "auto",
+    SourceAddrNPI: "auto",
     DestAddrTON: "1",
     DestAddrNPI: "1",
     Active: true,
@@ -312,6 +341,8 @@ function SMPPUpstreamsTab() {
       EnquireLink: "30",
       ReconnectWait: "5",
       RegisteredDelivery: "0",
+      SourceAddrTON: "auto",
+      SourceAddrNPI: "auto",
       DestAddrTON: "1",
       DestAddrNPI: "1",
       Active: true,
@@ -339,6 +370,8 @@ function SMPPUpstreamsTab() {
       EnquireLink: String(item.EnquireLink),
       ReconnectWait: String(item.ReconnectWait),
       RegisteredDelivery: String(item.RegisteredDelivery ?? 0),
+      SourceAddrTON: item.SourceAddrTON == null ? "auto" : String(item.SourceAddrTON),
+      SourceAddrNPI: item.SourceAddrNPI == null ? "auto" : String(item.SourceAddrNPI),
       DestAddrTON: String(item.DestAddrTON ?? 1),
       DestAddrNPI: String(item.DestAddrNPI ?? 1),
       Active: item.Active,
@@ -361,6 +394,8 @@ function SMPPUpstreamsTab() {
         EnquireLink: Number(form.EnquireLink) || 30,
         ReconnectWait: Number(form.ReconnectWait) || 5,
         RegisteredDelivery: Number(form.RegisteredDelivery) || 0,
+        SourceAddrTON: optionalSMPPAddressValue(form.SourceAddrTON),
+        SourceAddrNPI: optionalSMPPAddressValue(form.SourceAddrNPI),
         DestAddrTON: Number(form.DestAddrTON),
         DestAddrNPI: Number(form.DestAddrNPI),
         Active: form.Active,
@@ -462,7 +497,6 @@ function SMPPUpstreamsTab() {
                 <th>Bind Mode</th>
                 <th>State</th>
                 <th>DLR</th>
-                <th>Destination</th>
                 <th>Enquire</th>
                 <th>Actions</th>
               </tr>
@@ -480,7 +514,6 @@ function SMPPUpstreamsTab() {
                     <td>{item.BindMode}</td>
                     <td>{state}</td>
                     <td>{smppDLRLabel(item.RegisteredDelivery)}</td>
-                    <td className="mono">TON {item.DestAddrTON ?? 1} / NPI {item.DestAddrNPI ?? 1}</td>
                     <td className="mono">{item.EnquireLink}s</td>
                     <td>
                       <div className="flex gap-8">
@@ -562,12 +595,38 @@ function SMPPUpstreamsTab() {
                     </select>
                   </label>
                   <label className="field">
+                    <span>Source TON</span>
+                    <select className="input" value={form.SourceAddrTON} onChange={(event) => setForm({ ...form, SourceAddrTON: event.target.value })}>
+                      <option value="auto">Auto</option>
+                      {smppTONOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Source NPI</span>
+                    <select className="input" value={form.SourceAddrNPI} onChange={(event) => setForm({ ...form, SourceAddrNPI: event.target.value })}>
+                      <option value="auto">Auto</option>
+                      {smppNPIOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
                     <span>Destination TON</span>
-                    <input className="input" type="number" min="0" max="255" value={form.DestAddrTON} onChange={(event) => setForm({ ...form, DestAddrTON: event.target.value })} />
+                    <select className="input" value={form.DestAddrTON} onChange={(event) => setForm({ ...form, DestAddrTON: event.target.value })}>
+                      {smppTONOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className="field">
                     <span>Destination NPI</span>
-                    <input className="input" type="number" min="0" max="255" value={form.DestAddrNPI} onChange={(event) => setForm({ ...form, DestAddrNPI: event.target.value })} />
+                    <select className="input" value={form.DestAddrNPI} onChange={(event) => setForm({ ...form, DestAddrNPI: event.target.value })}>
+                      {smppNPIOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className="checkbox">
                     <input type="checkbox" checked={form.Active} onChange={(event) => setForm({ ...form, Active: event.target.checked })} />

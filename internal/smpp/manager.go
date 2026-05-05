@@ -230,6 +230,18 @@ func (m *Manager) Close() error {
 }
 
 func sameRuntimeConfig(cfg Config, upstream db.SMPPUpstream) bool {
+	sourceAddrTON := 0
+	sourceAddrTONSet := false
+	if upstream.SourceAddrTON != nil {
+		sourceAddrTON = *upstream.SourceAddrTON
+		sourceAddrTONSet = true
+	}
+	sourceAddrNPI := 0
+	sourceAddrNPISet := false
+	if upstream.SourceAddrNPI != nil {
+		sourceAddrNPI = *upstream.SourceAddrNPI
+		sourceAddrNPISet = true
+	}
 	destAddrTON := 1
 	if upstream.DestAddrTON != nil {
 		destAddrTON = *upstream.DestAddrTON
@@ -245,6 +257,10 @@ func sameRuntimeConfig(cfg Config, upstream db.SMPPUpstream) bool {
 		cfg.SystemType == upstream.SystemType &&
 		cfg.BindMode == upstream.BindMode &&
 		cfg.RegisteredDelivery == byte(upstream.RegisteredDelivery) &&
+		cfg.SourceAddrTON == byte(sourceAddrTON) &&
+		cfg.SourceAddrNPI == byte(sourceAddrNPI) &&
+		cfg.SourceAddrTONSet == sourceAddrTONSet &&
+		cfg.SourceAddrNPISet == sourceAddrNPISet &&
 		cfg.DestAddrTON == byte(destAddrTON) &&
 		cfg.DestAddrNPI == byte(destAddrNPI) &&
 		cfg.ReconnectWait == durationSeconds(upstream.ReconnectWait) &&

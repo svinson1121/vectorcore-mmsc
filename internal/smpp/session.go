@@ -29,6 +29,10 @@ type Config struct {
 	ReconnectWait      time.Duration
 	EnquireLink        time.Duration
 	RegisteredDelivery byte
+	SourceAddrTON      byte
+	SourceAddrNPI      byte
+	SourceAddrTONSet   bool
+	SourceAddrNPISet   bool
 	DestAddrTON        byte
 	DestAddrNPI        byte
 	DestAddrTONSet     bool

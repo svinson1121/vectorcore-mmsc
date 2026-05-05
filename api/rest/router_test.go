@@ -524,6 +524,8 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 		EnquireLink:        30,
 		ReconnectWait:      5,
 		RegisteredDelivery: 3,
+		SourceAddrTON:      restIntPtr(5),
+		SourceAddrNPI:      restIntPtr(0),
 		DestAddrTON:        restIntPtr(2),
 		DestAddrNPI:        restIntPtr(8),
 		Active:             true,
@@ -544,7 +546,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err := repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 || upstreams[0].RegisteredDelivery != 3 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
+	if err != nil || len(upstreams) != 1 || upstreams[0].RegisteredDelivery != 3 || upstreams[0].SourceAddrTON == nil || *upstreams[0].SourceAddrTON != 5 || upstreams[0].SourceAddrNPI == nil || *upstreams[0].SourceAddrNPI != 0 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
 		t.Fatalf("unexpected upstreams: %#v err=%v", upstreams, err)
 	}
 	updated, err := repo.GetMessage(context.Background(), "mid-2")
@@ -564,6 +566,8 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 		EnquireLink:        15,
 		ReconnectWait:      6,
 		RegisteredDelivery: 2,
+		SourceAddrTON:      nil,
+		SourceAddrNPI:      nil,
 		DestAddrTON:        restIntPtr(0),
 		DestAddrNPI:        restIntPtr(1),
 		Active:             false,
@@ -576,7 +580,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err = repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].RegisteredDelivery != 2 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 0 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 1 || upstreams[0].Active {
+	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].RegisteredDelivery != 2 || upstreams[0].SourceAddrTON != nil || upstreams[0].SourceAddrNPI != nil || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 0 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 1 || upstreams[0].Active {
 		t.Fatalf("unexpected updated upstreams: %#v err=%v", upstreams, err)
 	}
 

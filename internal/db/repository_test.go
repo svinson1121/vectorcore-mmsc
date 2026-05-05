@@ -234,6 +234,8 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 		EnquireLink:        15,
 		ReconnectWait:      3,
 		RegisteredDelivery: 3,
+		SourceAddrTON:      intPtr(5),
+		SourceAddrNPI:      intPtr(0),
 		DestAddrTON:        intPtr(2),
 		DestAddrNPI:        intPtr(8),
 		Active:             true,
@@ -244,8 +246,25 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list smpp upstreams: %v", err)
 	}
-	if len(upstreams) != 1 || upstreams[0].Name != "primary" || upstreams[0].RegisteredDelivery != 3 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
+	if len(upstreams) != 1 || upstreams[0].Name != "primary" || upstreams[0].RegisteredDelivery != 3 || upstreams[0].SourceAddrTON == nil || *upstreams[0].SourceAddrTON != 5 || upstreams[0].SourceAddrNPI == nil || *upstreams[0].SourceAddrNPI != 0 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
 		t.Fatalf("unexpected upstreams: %#v", upstreams)
+	}
+	if err := repo.UpsertSMPPUpstream(context.Background(), SMPPUpstream{
+		Name:          "auto-source",
+		Host:          "smsc.example.net",
+		SystemID:      "mmsc",
+		Password:      "secret",
+		SourceAddrTON: nil,
+		SourceAddrNPI: nil,
+	}); err != nil {
+		t.Fatalf("upsert auto-source smpp upstream: %v", err)
+	}
+	upstreams, err = repo.ListSMPPUpstreams(context.Background())
+	if err != nil {
+		t.Fatalf("list smpp upstreams with auto source: %v", err)
+	}
+	if len(upstreams) != 2 || upstreams[0].SourceAddrTON != nil || upstreams[0].SourceAddrNPI != nil {
+		t.Fatalf("expected nil source TON/NPI for auto-source: %#v", upstreams)
 	}
 	if err := repo.UpsertSMPPUpstream(context.Background(), SMPPUpstream{
 		Name:        "invalid-ton",
@@ -255,6 +274,9 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 		DestAddrTON: intPtr(256),
 	}); err == nil {
 		t.Fatal("expected invalid dest_addr_ton to fail")
+	}
+	if err := repo.DeleteSMPPUpstream(context.Background(), "auto-source"); err != nil {
+		t.Fatalf("delete auto-source smpp upstream: %v", err)
 	}
 	if err := repo.DeleteSMPPUpstream(context.Background(), "primary"); err != nil {
 		t.Fatalf("delete smpp upstream: %v", err)
