@@ -524,6 +524,8 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 		EnquireLink:        30,
 		ReconnectWait:      5,
 		RegisteredDelivery: 3,
+		DestAddrTON:        restIntPtr(2),
+		DestAddrNPI:        restIntPtr(8),
 		Active:             true,
 	})
 	upstreamReq := httptest.NewRequest(http.MethodPost, "/api/v1/smpp/upstreams", bytes.NewReader(upstreamBody))
@@ -542,7 +544,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err := repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 || upstreams[0].RegisteredDelivery != 3 {
+	if err != nil || len(upstreams) != 1 || upstreams[0].RegisteredDelivery != 3 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
 		t.Fatalf("unexpected upstreams: %#v err=%v", upstreams, err)
 	}
 	updated, err := repo.GetMessage(context.Background(), "mid-2")
@@ -562,6 +564,8 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 		EnquireLink:        15,
 		ReconnectWait:      6,
 		RegisteredDelivery: 2,
+		DestAddrTON:        restIntPtr(0),
+		DestAddrNPI:        restIntPtr(1),
 		Active:             false,
 	})
 	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/smpp/upstreams/primary", bytes.NewReader(upstreamBody))
@@ -572,7 +576,7 @@ func TestRouterUpsertsSMPPUpstreamAndPatchesMessageStatus(t *testing.T) {
 	}
 
 	upstreams, err = repo.ListSMPPUpstreams(context.Background())
-	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].RegisteredDelivery != 2 || upstreams[0].Active {
+	if err != nil || len(upstreams) != 1 || upstreams[0].Host != "smsc2.example.net" || upstreams[0].BindMode != "receiver" || upstreams[0].RegisteredDelivery != 2 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 0 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 1 || upstreams[0].Active {
 		t.Fatalf("unexpected updated upstreams: %#v err=%v", upstreams, err)
 	}
 
@@ -688,4 +692,8 @@ func newTestRepo(t *testing.T) db.Repository {
 		t.Fatalf("run migrations: %v", err)
 	}
 	return repo
+}
+
+func restIntPtr(v int) *int {
+	return &v
 }

@@ -68,6 +68,9 @@ mm1:
 mm4:
   inbound_listen: ":2025"
   hostname: "mmsc.localdomain"
+  smtp_envelope_from: ""
+  smtp_envelope_recipient_domain: ""
+  request_forward_ack: false
 
 mm7:
   listen: ":8007"

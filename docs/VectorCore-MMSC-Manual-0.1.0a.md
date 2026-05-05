@@ -394,6 +394,8 @@ Observed interoperability notes for the current MM1 implementation:
 
 The MMSC delivers WAP push notifications via an SMPP upstream. Configure one or more SMPP upstreams in the Admin UI under the SMPP section. The MMSC will submit a WAP push to each recipient's MSISDN through the configured upstream.
 
+Each SMPP peer can set destination TON/NPI for `submit_sm` destination addressing. The default is TON `1` and NPI `1`, matching International / ISDN E.164 addressing for MSISDN delivery.
+
 The UE's MSISDN is extracted from HTTP headers supplied by the carrier network:
 - `X-WAP-Network-Client-MSISDN`
 - `X-MSISDN`

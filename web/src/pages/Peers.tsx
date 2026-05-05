@@ -292,6 +292,8 @@ function SMPPUpstreamsTab() {
     EnquireLink: "30",
     ReconnectWait: "5",
     RegisteredDelivery: "0",
+    DestAddrTON: "1",
+    DestAddrNPI: "1",
     Active: true,
   });
 
@@ -310,6 +312,8 @@ function SMPPUpstreamsTab() {
       EnquireLink: "30",
       ReconnectWait: "5",
       RegisteredDelivery: "0",
+      DestAddrTON: "1",
+      DestAddrNPI: "1",
       Active: true,
     });
   }
@@ -335,6 +339,8 @@ function SMPPUpstreamsTab() {
       EnquireLink: String(item.EnquireLink),
       ReconnectWait: String(item.ReconnectWait),
       RegisteredDelivery: String(item.RegisteredDelivery ?? 0),
+      DestAddrTON: String(item.DestAddrTON ?? 1),
+      DestAddrNPI: String(item.DestAddrNPI ?? 1),
       Active: item.Active,
     });
     setShowAdd(true);
@@ -355,6 +361,8 @@ function SMPPUpstreamsTab() {
         EnquireLink: Number(form.EnquireLink) || 30,
         ReconnectWait: Number(form.ReconnectWait) || 5,
         RegisteredDelivery: Number(form.RegisteredDelivery) || 0,
+        DestAddrTON: Number(form.DestAddrTON),
+        DestAddrNPI: Number(form.DestAddrNPI),
         Active: form.Active,
       };
       if (editing) {
@@ -454,6 +462,7 @@ function SMPPUpstreamsTab() {
                 <th>Bind Mode</th>
                 <th>State</th>
                 <th>DLR</th>
+                <th>Destination</th>
                 <th>Enquire</th>
                 <th>Actions</th>
               </tr>
@@ -471,6 +480,7 @@ function SMPPUpstreamsTab() {
                     <td>{item.BindMode}</td>
                     <td>{state}</td>
                     <td>{smppDLRLabel(item.RegisteredDelivery)}</td>
+                    <td className="mono">TON {item.DestAddrTON ?? 1} / NPI {item.DestAddrNPI ?? 1}</td>
                     <td className="mono">{item.EnquireLink}s</td>
                     <td>
                       <div className="flex gap-8">
@@ -550,6 +560,14 @@ function SMPPUpstreamsTab() {
                       <option value="2">Failure</option>
                       <option value="3">Success + failure</option>
                     </select>
+                  </label>
+                  <label className="field">
+                    <span>Destination TON</span>
+                    <input className="input" type="number" min="0" max="255" value={form.DestAddrTON} onChange={(event) => setForm({ ...form, DestAddrTON: event.target.value })} />
+                  </label>
+                  <label className="field">
+                    <span>Destination NPI</span>
+                    <input className="input" type="number" min="0" max="255" value={form.DestAddrNPI} onChange={(event) => setForm({ ...form, DestAddrNPI: event.target.value })} />
                   </label>
                   <label className="checkbox">
                     <input type="checkbox" checked={form.Active} onChange={(event) => setForm({ ...form, Active: event.target.checked })} />

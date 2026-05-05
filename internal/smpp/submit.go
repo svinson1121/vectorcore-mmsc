@@ -57,6 +57,14 @@ func (c *Client) SubmitWAPPushTracked(ctx context.Context, sourceAddr string, ms
 
 func (c *Client) submitSegment(ctx context.Context, sourceAddr string, msisdn string, payload []byte) (string, error) {
 	var remoteMessageID string
+	destAddrTON := c.cfg.DestAddrTON
+	if destAddrTON == 0 && !c.cfg.DestAddrTONSet {
+		destAddrTON = 0x01
+	}
+	destAddrNPI := c.cfg.DestAddrNPI
+	if destAddrNPI == 0 && !c.cfg.DestAddrNPISet {
+		destAddrNPI = 0x01
+	}
 	log := zap.L().With(
 		zap.String("interface", "smpp"),
 		zap.String("host", c.cfg.Host),
@@ -76,8 +84,8 @@ func (c *Client) submitSegment(ctx context.Context, sourceAddr string, msisdn st
 			SourceAddrTON:   sourceTON,
 			SourceAddrNPI:   sourceNPI,
 			SourceAddr:      sourceAddr,
-			DestAddrTON:     0x01,
-			DestAddrNPI:     0x01,
+			DestAddrTON:     destAddrTON,
+			DestAddrNPI:     destAddrNPI,
 			DestinationAddr: msisdn,
 			ESMClass:        ESMClassUDHI,
 			// 0xF5: 8-bit data, Class 1 (ME-specific) — required for WAP Push.

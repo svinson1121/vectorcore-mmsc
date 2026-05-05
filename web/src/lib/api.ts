@@ -103,6 +103,8 @@ export interface SMPPUpstream {
   EnquireLink: number;
   ReconnectWait: number;
   RegisteredDelivery: number;
+  DestAddrTON: number | null;
+  DestAddrNPI: number | null;
   Active: boolean;
 }
 

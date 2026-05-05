@@ -632,6 +632,14 @@ func (r *sqlRepository) UpsertSMPPUpstream(ctx context.Context, upstream SMPPUps
 	if upstream.RegisteredDelivery < 0 || upstream.RegisteredDelivery > 3 {
 		return errors.New("smpp upstream registered_delivery must be between 0 and 3")
 	}
+	destAddrTON := optionalIntDefault(upstream.DestAddrTON, 1)
+	destAddrNPI := optionalIntDefault(upstream.DestAddrNPI, 1)
+	if destAddrTON < 0 || destAddrTON > 255 {
+		return errors.New("smpp upstream dest_addr_ton must be between 0 and 255")
+	}
+	if destAddrNPI < 0 || destAddrNPI > 255 {
+		return errors.New("smpp upstream dest_addr_npi must be between 0 and 255")
+	}
 	_, err := r.db.ExecContext(ctx, r.upsertSMPPUpstreamSQL(),
 		upstream.Name,
 		upstream.Host,
@@ -643,6 +651,8 @@ func (r *sqlRepository) UpsertSMPPUpstream(ctx context.Context, upstream SMPPUps
 		upstream.EnquireLink,
 		upstream.ReconnectWait,
 		upstream.RegisteredDelivery,
+		destAddrTON,
+		destAddrNPI,
 		upstream.Active,
 	)
 	if err != nil {
@@ -652,7 +662,7 @@ func (r *sqlRepository) UpsertSMPPUpstream(ctx context.Context, upstream SMPPUps
 }
 
 func (r *sqlRepository) ListSMPPUpstreams(ctx context.Context) ([]SMPPUpstream, error) {
-	rows, err := r.db.QueryContext(ctx, `select name, host, port, system_id, password, coalesce(system_type, ''), bind_mode, enquire_link, reconnect_wait, registered_delivery, active from smpp_upstream order by name`)
+	rows, err := r.db.QueryContext(ctx, `select name, host, port, system_id, password, coalesce(system_type, ''), bind_mode, enquire_link, reconnect_wait, registered_delivery, dest_addr_ton, dest_addr_npi, active from smpp_upstream order by name`)
 	if err != nil {
 		return nil, fmt.Errorf("list smpp upstreams: %w", err)
 	}
@@ -661,6 +671,7 @@ func (r *sqlRepository) ListSMPPUpstreams(ctx context.Context) ([]SMPPUpstream, 
 	var out []SMPPUpstream
 	for rows.Next() {
 		var upstream SMPPUpstream
+		var destAddrTON, destAddrNPI int
 		if err := rows.Scan(
 			&upstream.Name,
 			&upstream.Host,
@@ -672,10 +683,14 @@ func (r *sqlRepository) ListSMPPUpstreams(ctx context.Context) ([]SMPPUpstream, 
 			&upstream.EnquireLink,
 			&upstream.ReconnectWait,
 			&upstream.RegisteredDelivery,
+			&destAddrTON,
+			&destAddrNPI,
 			&upstream.Active,
 		); err != nil {
 			return nil, err
 		}
+		upstream.DestAddrTON = &destAddrTON
+		upstream.DestAddrNPI = &destAddrNPI
 		out = append(out, upstream)
 	}
 	if err := rows.Err(); err != nil {
@@ -1183,8 +1198,8 @@ func (r *sqlRepository) listMM7VASPsSQL() string {
 
 func (r *sqlRepository) upsertSMPPUpstreamSQL() string {
 	if r.driver == "postgres" {
-		return `insert into smpp_upstream (name, host, port, system_id, password, system_type, bind_mode, enquire_link, reconnect_wait, registered_delivery, active)
-			values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		return `insert into smpp_upstream (name, host, port, system_id, password, system_type, bind_mode, enquire_link, reconnect_wait, registered_delivery, dest_addr_ton, dest_addr_npi, active)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 			on conflict (name) do update set
 				host = excluded.host,
 				port = excluded.port,
@@ -1195,11 +1210,13 @@ func (r *sqlRepository) upsertSMPPUpstreamSQL() string {
 				enquire_link = excluded.enquire_link,
 				reconnect_wait = excluded.reconnect_wait,
 				registered_delivery = excluded.registered_delivery,
+				dest_addr_ton = excluded.dest_addr_ton,
+				dest_addr_npi = excluded.dest_addr_npi,
 				active = excluded.active,
 				updated_at = now()`
 	}
-	return `insert into smpp_upstream (name, host, port, system_id, password, system_type, bind_mode, enquire_link, reconnect_wait, registered_delivery, active)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	return `insert into smpp_upstream (name, host, port, system_id, password, system_type, bind_mode, enquire_link, reconnect_wait, registered_delivery, dest_addr_ton, dest_addr_npi, active)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		on conflict(name) do update set
 			host = excluded.host,
 			port = excluded.port,
@@ -1210,6 +1227,8 @@ func (r *sqlRepository) upsertSMPPUpstreamSQL() string {
 			enquire_link = excluded.enquire_link,
 			reconnect_wait = excluded.reconnect_wait,
 			registered_delivery = excluded.registered_delivery,
+			dest_addr_ton = excluded.dest_addr_ton,
+			dest_addr_npi = excluded.dest_addr_npi,
 			active = excluded.active,
 			updated_at = current_timestamp`
 }
@@ -1510,6 +1529,13 @@ func nullableString(value string) any {
 		return nil
 	}
 	return value
+}
+
+func optionalIntDefault(value *int, fallback int) int {
+	if value == nil {
+		return fallback
+	}
+	return *value
 }
 
 func defaultString(value, fallback string) string {

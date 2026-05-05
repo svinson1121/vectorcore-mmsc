@@ -46,6 +46,18 @@ func (c *Client) SetDeliveryReceiptHandler(fn func(*DeliveryReceipt)) {
 }
 
 func NewClientFromUpstream(upstream db.SMPPUpstream) *Client {
+	destAddrTON := 1
+	destAddrTONSet := false
+	if upstream.DestAddrTON != nil {
+		destAddrTON = *upstream.DestAddrTON
+		destAddrTONSet = true
+	}
+	destAddrNPI := 1
+	destAddrNPISet := false
+	if upstream.DestAddrNPI != nil {
+		destAddrNPI = *upstream.DestAddrNPI
+		destAddrNPISet = true
+	}
 	return NewClient(Config{
 		Host:               upstream.Host,
 		Port:               upstream.Port,
@@ -56,6 +68,10 @@ func NewClientFromUpstream(upstream db.SMPPUpstream) *Client {
 		ReconnectWait:      durationSeconds(upstream.ReconnectWait),
 		EnquireLink:        durationSeconds(upstream.EnquireLink),
 		RegisteredDelivery: byte(upstream.RegisteredDelivery),
+		DestAddrTON:        byte(destAddrTON),
+		DestAddrNPI:        byte(destAddrNPI),
+		DestAddrTONSet:     destAddrTONSet,
+		DestAddrNPISet:     destAddrNPISet,
 	})
 }
 

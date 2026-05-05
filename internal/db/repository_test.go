@@ -234,6 +234,8 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 		EnquireLink:        15,
 		ReconnectWait:      3,
 		RegisteredDelivery: 3,
+		DestAddrTON:        intPtr(2),
+		DestAddrNPI:        intPtr(8),
 		Active:             true,
 	}); err != nil {
 		t.Fatalf("upsert smpp upstream: %v", err)
@@ -242,8 +244,17 @@ func TestRepositoryRuntimeConfigLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list smpp upstreams: %v", err)
 	}
-	if len(upstreams) != 1 || upstreams[0].Name != "primary" || upstreams[0].RegisteredDelivery != 3 {
+	if len(upstreams) != 1 || upstreams[0].Name != "primary" || upstreams[0].RegisteredDelivery != 3 || upstreams[0].DestAddrTON == nil || *upstreams[0].DestAddrTON != 2 || upstreams[0].DestAddrNPI == nil || *upstreams[0].DestAddrNPI != 8 {
 		t.Fatalf("unexpected upstreams: %#v", upstreams)
+	}
+	if err := repo.UpsertSMPPUpstream(context.Background(), SMPPUpstream{
+		Name:        "invalid-ton",
+		Host:        "smsc.example.net",
+		SystemID:    "mmsc",
+		Password:    "secret",
+		DestAddrTON: intPtr(256),
+	}); err == nil {
+		t.Fatal("expected invalid dest_addr_ton to fail")
 	}
 	if err := repo.DeleteSMPPUpstream(context.Background(), "primary"); err != nil {
 		t.Fatalf("delete smpp upstream: %v", err)
@@ -418,5 +429,9 @@ func statusPtr(v message.Status) *message.Status {
 }
 
 func directionPtr(v message.Direction) *message.Direction {
+	return &v
+}
+
+func intPtr(v int) *int {
 	return &v
 }

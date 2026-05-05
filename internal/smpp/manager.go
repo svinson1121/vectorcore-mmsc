@@ -230,6 +230,14 @@ func (m *Manager) Close() error {
 }
 
 func sameRuntimeConfig(cfg Config, upstream db.SMPPUpstream) bool {
+	destAddrTON := 1
+	if upstream.DestAddrTON != nil {
+		destAddrTON = *upstream.DestAddrTON
+	}
+	destAddrNPI := 1
+	if upstream.DestAddrNPI != nil {
+		destAddrNPI = *upstream.DestAddrNPI
+	}
 	return cfg.Host == upstream.Host &&
 		cfg.Port == upstream.Port &&
 		cfg.SystemID == upstream.SystemID &&
@@ -237,6 +245,8 @@ func sameRuntimeConfig(cfg Config, upstream db.SMPPUpstream) bool {
 		cfg.SystemType == upstream.SystemType &&
 		cfg.BindMode == upstream.BindMode &&
 		cfg.RegisteredDelivery == byte(upstream.RegisteredDelivery) &&
+		cfg.DestAddrTON == byte(destAddrTON) &&
+		cfg.DestAddrNPI == byte(destAddrNPI) &&
 		cfg.ReconnectWait == durationSeconds(upstream.ReconnectWait) &&
 		cfg.EnquireLink == durationSeconds(upstream.EnquireLink)
 }
