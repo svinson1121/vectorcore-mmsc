@@ -9,10 +9,20 @@ import (
 
 const headerLen = 16
 
+// maxCommandLength bounds allocations made from an untrusted SMPP header.
+// SMPP uses a uint32 command_length but practical PDUs are far smaller.
+const maxCommandLength = 16 << 20
+
 func Encode(pdu *PDU) ([]byte, error) {
+	if pdu == nil {
+		return nil, fmt.Errorf("smpp: nil pdu")
+	}
 	body, err := encodeBody(pdu)
 	if err != nil {
 		return nil, err
+	}
+	if len(body) > maxCommandLength-headerLen {
+		return nil, fmt.Errorf("smpp: command body too large: %d bytes", len(body))
 	}
 	pdu.CommandLength = uint32(headerLen + len(body))
 
@@ -40,11 +50,11 @@ func Decode(r io.Reader) (*PDU, error) {
 	if pdu.CommandLength < headerLen {
 		return nil, fmt.Errorf("smpp: invalid command length %d", pdu.CommandLength)
 	}
+	if pdu.CommandLength > maxCommandLength {
+		return nil, fmt.Errorf("smpp: command length %d exceeds maximum %d", pdu.CommandLength, maxCommandLength)
+	}
 
 	bodyLen := int(pdu.CommandLength) - headerLen
-	if bodyLen == 0 {
-		return pdu, nil
-	}
 	body := make([]byte, bodyLen)
 	if _, err := io.ReadFull(r, body); err != nil {
 		return nil, err

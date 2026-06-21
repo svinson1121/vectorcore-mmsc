@@ -14,6 +14,7 @@ var (
 	errShortData      = errors.New("mmspdu: short data")
 	errInvalidInteger = errors.New("mmspdu: invalid integer encoding")
 	errInvalidUintvar = errors.New("mmspdu: invalid uintvar encoding")
+	errInvalidText    = errors.New("mmspdu: invalid text string")
 	errInsertAddress  = errors.New("mmspdu: insert-address-token")
 )
 
@@ -216,12 +217,23 @@ func decodeUintvar(data []byte) (uint64, int, error) {
 }
 
 func encodeTextString(value string) []byte {
-	return append([]byte(value), 0x00)
+	out := make([]byte, 0, len(value)+2)
+	if len(value) > 0 && (value[0] < 0x20 || value[0] == 0x22 || value[0] >= 0x7f) {
+		out = append(out, 0x7f)
+	}
+	out = append(out, value...)
+	return append(out, 0x00)
 }
 
 func decodeTextString(data []byte) (string, error) {
 	if len(data) == 0 || data[len(data)-1] != 0x00 {
 		return "", errShortData
+	}
+	if data[0] == 0x7f {
+		data = data[1:]
+	}
+	if bytes.IndexByte(data[:len(data)-1], 0x00) >= 0 {
+		return "", errInvalidText
 	}
 	return string(data[:len(data)-1]), nil
 }
@@ -236,6 +248,9 @@ func encodeQuotedString(value string) []byte {
 func decodeQuotedString(data []byte) (string, error) {
 	if len(data) < 2 || data[0] != 0x22 || data[len(data)-1] != 0x00 {
 		return "", errShortData
+	}
+	if bytes.IndexByte(data[1:len(data)-1], 0x00) >= 0 {
+		return "", errInvalidText
 	}
 	return string(data[1 : len(data)-1]), nil
 }

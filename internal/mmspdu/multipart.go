@@ -37,8 +37,14 @@ func DecodeMultipart(data []byte) (*MultipartBody, error) {
 		return nil, err
 	}
 	reader.pos += consumed
+	// Every part requires at least a one-byte header length and a one-byte
+	// data length. Reject impossible counts before converting the count to an
+	// allocation size; otherwise a few input bytes can request a huge slice.
+	if count > uint64(reader.Remaining()/2) {
+		return nil, fmt.Errorf("mmspdu: multipart part count %d exceeds remaining data", count)
+	}
 
-	body := &MultipartBody{Parts: make([]Part, 0, count)}
+	body := &MultipartBody{Parts: make([]Part, 0, int(count))}
 	for i := uint64(0); i < count; i++ {
 		headerLen, err := readUintvarFromReader(reader)
 		if err != nil {
@@ -48,10 +54,16 @@ func DecodeMultipart(data []byte) (*MultipartBody, error) {
 		if err != nil {
 			return nil, err
 		}
+		if headerLen > uint64(reader.Remaining()) {
+			return nil, errShortData
+		}
 
 		headerBlock, err := reader.ReadN(int(headerLen))
 		if err != nil {
 			return nil, err
+		}
+		if dataLen > uint64(reader.Remaining()) {
+			return nil, errShortData
 		}
 		payload, err := reader.ReadN(int(dataLen))
 		if err != nil {
@@ -83,6 +95,9 @@ func encodePartHeaders(part Part) ([]byte, error) {
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
+		if key == "" {
+			continue
+		}
 		val := normalizedHeaders[key]
 		switch key {
 		case "content-id":
@@ -93,13 +108,20 @@ func encodePartHeaders(part Part) ([]byte, error) {
 		case "content-location":
 			// Encode as well-known token 0x8E + text string.
 			out = append(out, 0x8E)
-			out = append(out, encodeTextString(val)...)
+			out = append(out, encodePartTextValue(val)...)
 		default:
 			out = append(out, encodeTextString(key)...)
-			out = append(out, encodeTextString(val)...)
+			out = append(out, encodePartTextValue(val)...)
 		}
 	}
 	return out, nil
+}
+
+func encodePartTextValue(value string) []byte {
+	if value == "" {
+		return encodeQuotedString("")
+	}
+	return encodeTextString(value)
 }
 
 // ensureAngleBrackets wraps a content-id value in angle brackets if not
@@ -149,7 +171,7 @@ func decodePartHeaders(data []byte) (Part, error) {
 		if err != nil {
 			return Part{}, err
 		}
-		value, err := decodeTextString(valueRaw)
+		value, err := decodePartHeaderTextValue(valueRaw)
 		if err != nil {
 			return Part{}, err
 		}

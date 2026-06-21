@@ -103,7 +103,7 @@ func (v HeaderValue) ContentType() (ContentTypeValue, error) {
 // Length-quote (0x1F + uintvar).
 func encodeContentTypeValue(value ContentTypeValue) []byte {
 	mediaType := strings.ToLower(strings.TrimSpace(value.MediaType))
-	if mediaType == "" {
+	if !isValidMediaTypeText(mediaType) {
 		mediaType = "application/octet-stream"
 	}
 
@@ -112,7 +112,7 @@ func encodeContentTypeValue(value ContentTypeValue) []byte {
 		if token, ok := wellKnownMediaTypeTokens[mediaType]; ok {
 			return []byte{token}
 		}
-		return encodeTextString(value.MediaType)
+		return encodeTextString(mediaType)
 	}
 
 	// With parameters: Content-general-form.
@@ -121,7 +121,7 @@ func encodeContentTypeValue(value ContentTypeValue) []byte {
 	if token, ok := wellKnownMediaTypeTokens[mediaType]; ok {
 		payload = append(payload, token)
 	} else {
-		payload = append(payload, encodeTextString(value.MediaType)...)
+		payload = append(payload, encodeTextString(mediaType)...)
 	}
 
 	keys := make([]string, 0, len(value.Params))
@@ -145,7 +145,11 @@ func encodeContentTypeValue(value ContentTypeValue) []byte {
 				continue
 			}
 		}
-		payload = append(payload, encodeTextString(val)...)
+		if val == "" {
+			payload = append(payload, encodeQuotedString("")...)
+		} else {
+			payload = append(payload, encodeTextString(val)...)
+		}
 	}
 
 	if len(payload) <= 30 {
@@ -155,6 +159,18 @@ func encodeContentTypeValue(value ContentTypeValue) []byte {
 	out := []byte{0x1F}
 	out = append(out, encodeUintvar(uint64(len(payload)))...)
 	return append(out, payload...)
+}
+
+func isValidMediaTypeText(value string) bool {
+	if value == "" {
+		return false
+	}
+	for i := 0; i < len(value); i++ {
+		if value[i] < 0x20 || value[i] >= 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeContentTypeValue decodes a WAP binary content-type value.
