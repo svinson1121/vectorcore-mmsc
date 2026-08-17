@@ -1,7 +1,10 @@
 import { FormEvent, useState } from "react";
 
+import { DiscardConfirm } from "../components/DiscardConfirm";
 import { Modal } from "../components/Modal";
 import { useToast } from "../components/Toast";
+import { useConfirmClose } from "../hooks/useConfirmClose";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { AdaptationClass, asArray, csv, sendJSON, sendRequest, SystemConfig, useAPI } from "../lib/api";
 
 type AdaptationFormState = {
@@ -31,8 +34,15 @@ export function Adaptation() {
   const classList = asArray(classes.data.classes);
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState<AdaptationClass | null>(null);
-  const [form, setForm] = useState<AdaptationFormState>(defaultForm);
+  const [form, setForm, dirty, resetDirty] = useDirtyState<AdaptationFormState>(defaultForm);
   const [error, setError] = useState("");
+
+  function closeEditor() {
+    setShowEditor(false);
+    setEditing(null);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeEditor);
   const defaultClass = classList.find((item) => item.Name === "default");
   const nonDefaultCount = classList.filter((item) => item.Name !== "default").length;
   const imageRestrictedCount = classList.filter((item) => asArray(item.AllowedImageTypes).length > 0).length;
@@ -46,6 +56,7 @@ export function Adaptation() {
     setEditing(null);
     setError("");
     resetForm();
+    resetDirty();
     setShowEditor(true);
   }
 
@@ -61,6 +72,7 @@ export function Adaptation() {
       AllowedAudioTypes: asArray(item.AllowedAudioTypes).join(", "),
       AllowedVideoTypes: asArray(item.AllowedVideoTypes).join(", "),
     });
+    resetDirty();
     setShowEditor(true);
   }
 
@@ -219,7 +231,13 @@ export function Adaptation() {
       )}
 
       {showEditor ? (
-        <Modal title={editing ? "Edit Adaptation Class" : "Add Adaptation Class"} onClose={() => { setShowEditor(false); setEditing(null); }} size="lg">
+        <Modal
+          title={editing ? "Edit Adaptation Class" : "Add Adaptation Class"}
+          onClose={requestClose}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          size="lg"
+        >
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="surface-note">
@@ -266,7 +284,7 @@ export function Adaptation() {
               {error && <div className="notice error">{error}</div>}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" type="button" onClick={() => { setShowEditor(false); setEditing(null); }}>
+              <button className="btn btn-ghost" type="button" onClick={closeEditor}>
                 Cancel
               </button>
               <button className="btn btn-primary" type="submit">
@@ -274,6 +292,7 @@ export function Adaptation() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>

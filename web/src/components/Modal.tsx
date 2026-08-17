@@ -5,14 +5,26 @@ type ModalProps = {
   onClose: () => void;
   children: ReactNode;
   size?: "lg";
+  closeOnBackdrop?: boolean;
+  closeOnEscape?: boolean;
 };
 
-export function Modal({ title, onClose, children, size }: ModalProps) {
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
+
+export function Modal({ title, onClose, children, size, closeOnBackdrop = true, closeOnEscape = true }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const firstFocusRef = useRef<HTMLHeadingElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const closeOnEscapeRef = useRef(closeOnEscape);
 
   onCloseRef.current = onClose;
+  closeOnEscapeRef.current = closeOnEscape;
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -20,7 +32,18 @@ export function Modal({ title, onClose, children, size }: ModalProps) {
 
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        onCloseRef.current();
+        if (closeOnEscapeRef.current) {
+          onCloseRef.current();
+        }
+        return;
+      }
+      // The browser's legacy "Backspace navigates back" behavior fires
+      // whenever focus sits on a non-editable element (e.g. this dialog's
+      // own title, focused on open) — silently unmounting the dialog via
+      // history navigation. Suppress it outside editable controls so
+      // Backspace only ever does its normal thing inside inputs.
+      if (event.key === "Backspace" && !isEditableTarget(event.target)) {
+        event.preventDefault();
       }
     }
 
@@ -32,7 +55,7 @@ export function Modal({ title, onClose, children, size }: ModalProps) {
   }, []);
 
   function handleOverlayClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (event.target === overlayRef.current) {
+    if (event.target === overlayRef.current && closeOnBackdrop) {
       onCloseRef.current();
     }
   }

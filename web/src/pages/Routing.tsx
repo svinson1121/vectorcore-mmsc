@@ -1,7 +1,10 @@
 import { FormEvent, useState } from "react";
 
+import { DiscardConfirm } from "../components/DiscardConfirm";
 import { Modal } from "../components/Modal";
 import { useToast } from "../components/Toast";
+import { useConfirmClose } from "../hooks/useConfirmClose";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { asArray, MM4Route, Peer, sendJSON, sendRequest, useAPI } from "../lib/api";
 
 export function Routing() {
@@ -11,7 +14,7 @@ export function Routing() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<MM4Route | null>(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
+  const [form, setForm, dirty, resetDirty] = useDirtyState({
     Name: "",
     MatchType: "msisdn_prefix",
     MatchValue: "",
@@ -19,6 +22,13 @@ export function Routing() {
     Priority: "100",
     Active: true,
   });
+
+  function closeModal() {
+    setShowAdd(false);
+    setEditing(null);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeModal);
 
   const routeList = asArray(routes.data.routes);
   const peerList = asArray(peers.data.peers);
@@ -42,6 +52,7 @@ export function Routing() {
     setEditing(null);
     setError("");
     resetForm();
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -56,6 +67,7 @@ export function Routing() {
       Priority: String(item.Priority),
       Active: item.Active,
     });
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -197,7 +209,13 @@ export function Routing() {
       )}
 
       {showAdd ? (
-        <Modal title={editing ? "Edit Route" : "Add Route"} onClose={() => { setShowAdd(false); setEditing(null); }} size="lg">
+        <Modal
+          title={editing ? "Edit Route" : "Add Route"}
+          onClose={requestClose}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          size="lg"
+        >
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="section-shell">
@@ -250,6 +268,7 @@ export function Routing() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>

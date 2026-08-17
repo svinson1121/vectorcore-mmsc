@@ -662,6 +662,18 @@ textarea {
   color: var(--text);
 }
 
+.btn-danger {
+  background: var(--danger);
+  color: var(--text-on-accent);
+  border-color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  opacity: 0.9;
+}
+
 .notice {
   padding: 10px 12px;
   border-radius: var(--radius);

@@ -1,7 +1,10 @@
 import { FormEvent, useState } from "react";
 
+import { DiscardConfirm } from "../components/DiscardConfirm";
 import { useToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
+import { useConfirmClose } from "../hooks/useConfirmClose";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { asArray, csv, Peer, sendJSON, sendRequest, SMPPStatus, SMPPUpstream, smppStateLabel, useAPI } from "../lib/api";
 
 type PeerTab = "mm4" | "smpp";
@@ -56,7 +59,7 @@ function MM4PeersTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Peer | null>(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
+  const [form, setForm, dirty, resetDirty] = useDirtyState({
     Name: "",
     Domain: "",
     SMTPHost: "",
@@ -69,6 +72,13 @@ function MM4PeersTab() {
   const activePeers = peerList.filter((item) => item.Active).length;
   const tlsPeers = peerList.filter((item) => item.TLSEnabled).length;
   const allowlistedPeers = peerList.filter((item) => asArray(item.AllowedIPs).length > 0).length;
+
+  function closeModal() {
+    setShowAdd(false);
+    setEditing(null);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeModal);
 
   function resetForm() {
     setForm({
@@ -86,6 +96,7 @@ function MM4PeersTab() {
     setEditing(null);
     setError("");
     resetForm();
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -101,6 +112,7 @@ function MM4PeersTab() {
       TLSEnabled: item.TLSEnabled,
       Active: item.Active,
     });
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -244,7 +256,13 @@ function MM4PeersTab() {
       )}
 
       {showAdd ? (
-        <Modal title={editing ? "Edit MM4 Peer" : "Add MM4 Peer"} onClose={() => { setShowAdd(false); setEditing(null); }} size="lg">
+        <Modal
+          title={editing ? "Edit MM4 Peer" : "Add MM4 Peer"}
+          onClose={requestClose}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          size="lg"
+        >
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="section-shell">
@@ -295,6 +313,7 @@ function MM4PeersTab() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>
@@ -308,7 +327,7 @@ function SMPPUpstreamsTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<SMPPUpstream | null>(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
+  const [form, setForm, dirty, resetDirty] = useDirtyState({
     Name: "",
     Host: "",
     Port: "2775",
@@ -328,6 +347,13 @@ function SMPPUpstreamsTab() {
 
   const statusList = asArray(status.data.upstreams);
   const upstreamList = asArray(upstreams.data.upstreams);
+
+  function closeModal() {
+    setShowAdd(false);
+    setEditing(null);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeModal);
 
   function resetForm() {
     setForm({
@@ -353,6 +379,7 @@ function SMPPUpstreamsTab() {
     setEditing(null);
     setError("");
     resetForm();
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -376,6 +403,7 @@ function SMPPUpstreamsTab() {
       DestAddrNPI: String(item.DestAddrNPI ?? 1),
       Active: item.Active,
     });
+    resetDirty();
     setShowAdd(true);
   }
 
@@ -534,7 +562,13 @@ function SMPPUpstreamsTab() {
       )}
 
       {showAdd ? (
-        <Modal title={editing ? "Edit SMPP Peer" : "Add SMPP Peer"} onClose={() => { setShowAdd(false); setEditing(null); }} size="lg">
+        <Modal
+          title={editing ? "Edit SMPP Peer" : "Add SMPP Peer"}
+          onClose={requestClose}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          size="lg"
+        >
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="section-shell">
@@ -644,6 +678,7 @@ function SMPPUpstreamsTab() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>

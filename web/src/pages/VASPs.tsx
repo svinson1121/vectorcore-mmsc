@@ -1,7 +1,10 @@
 import { FormEvent, useState } from "react";
 
+import { DiscardConfirm } from "../components/DiscardConfirm";
 import { useToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
+import { useConfirmClose } from "../hooks/useConfirmClose";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { asArray, csv, formatBytes, sendJSON, sendRequest, useAPI, VASP } from "../lib/api";
 
 type VASPFormState = {
@@ -37,7 +40,14 @@ export function VASPs() {
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState<VASP | null>(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<VASPFormState>(defaultForm);
+  const [form, setForm, dirty, resetDirty] = useDirtyState<VASPFormState>(defaultForm);
+
+  function closeEditor() {
+    setShowEditor(false);
+    setEditing(null);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeEditor);
 
   const activeCount = vaspList.filter((item) => item.Active).length;
   const soapCount = vaspList.filter((item) => effectiveProtocol(item) === "soap").length;
@@ -53,6 +63,7 @@ export function VASPs() {
     setEditing(null);
     setError("");
     resetForm();
+    resetDirty();
     setShowEditor(true);
   }
 
@@ -71,6 +82,7 @@ export function VASPs() {
       MaxMsgSize: String(item.MaxMsgSize || 1048576),
       Active: item.Active,
     });
+    resetDirty();
     setShowEditor(true);
   }
 
@@ -246,7 +258,13 @@ export function VASPs() {
       )}
 
       {showEditor ? (
-        <Modal title={editing ? "Edit MM7 VASP" : "Add MM7 VASP"} onClose={() => { setShowEditor(false); setEditing(null); }} size="lg">
+        <Modal
+          title={editing ? "Edit MM7 VASP" : "Add MM7 VASP"}
+          onClose={requestClose}
+          closeOnBackdrop={false}
+          closeOnEscape={false}
+          size="lg"
+        >
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="surface-note">
@@ -315,7 +333,7 @@ export function VASPs() {
               {error && <div className="notice error">{error}</div>}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" type="button" onClick={() => { setShowEditor(false); setEditing(null); }}>
+              <button className="btn btn-ghost" type="button" onClick={closeEditor}>
                 Cancel
               </button>
               <button className="btn btn-primary" type="submit">
@@ -323,6 +341,7 @@ export function VASPs() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>

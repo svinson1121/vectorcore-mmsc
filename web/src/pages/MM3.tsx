@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useState } from "react";
 
+import { DiscardConfirm } from "../components/DiscardConfirm";
 import { Modal } from "../components/Modal";
 import { useToast } from "../components/Toast";
+import { useConfirmClose } from "../hooks/useConfirmClose";
+import { useDirtyState } from "../hooks/useDirtyState";
 import { MM3Relay, sendJSON, useAPI } from "../lib/api";
 
 const emptyRelay: MM3Relay = {
@@ -20,7 +23,7 @@ export function MM3() {
   const relay = useAPI<MM3Relay>("/api/v1/mm3/relay", emptyRelay, 15000);
   const toast = useToast();
   const [showEditor, setShowEditor] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm, dirty, resetDirty] = useDirtyState({
     Enabled: false,
     SMTPHost: "",
     SMTPPort: "25",
@@ -35,7 +38,17 @@ export function MM3() {
   const [error, setError] = useState("");
   const [savedAt, setSavedAt] = useState("");
 
+  function closeEditor() {
+    setShowEditor(false);
+  }
+
+  const { requestClose, confirming, confirmDiscard, cancelDiscard } = useConfirmClose(dirty, closeEditor);
+
   useEffect(() => {
+    // Runs on every background poll of /api/v1/mm3/relay (see useAPI below),
+    // not just on user edits, so it resets the dirty flag right after
+    // resyncing — otherwise the periodic refresh alone would make the
+    // editor look "dirty" before the user has touched anything.
     setForm({
       Enabled: relay.data.Enabled,
       SMTPHost: relay.data.SMTPHost || "",
@@ -47,6 +60,7 @@ export function MM3() {
       DefaultSenderDomain: relay.data.DefaultSenderDomain || "",
       DefaultFromAddress: relay.data.DefaultFromAddress || "",
     });
+    resetDirty();
   }, [relay.data]);
 
   async function submit(event: FormEvent) {
@@ -181,7 +195,7 @@ export function MM3() {
       </div>
 
       {showEditor ? (
-        <Modal title="Edit MM3 Relay" onClose={() => setShowEditor(false)} size="lg">
+        <Modal title="Edit MM3 Relay" onClose={requestClose} closeOnBackdrop={false} closeOnEscape={false} size="lg">
           <form onSubmit={submit}>
             <div className="modal-body surface-stack">
               <div className="surface-note">
@@ -245,6 +259,7 @@ export function MM3() {
               </button>
             </div>
           </form>
+          <DiscardConfirm open={confirming} onDiscard={confirmDiscard} onCancel={cancelDiscard} />
         </Modal>
       ) : null}
     </div>
